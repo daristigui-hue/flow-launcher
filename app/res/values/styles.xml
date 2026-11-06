@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="abismo">#ff0a0000</color>
+    <style name="Tema" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Como Launcher3: la ventana NACE transparente y mostrando el wallpaper. Cambiarla a
+             transparente en tiempo de ejecución no sirvió (v0.3): Android ya la había creado opaca.
+             Con fondo Persona solo se apaga FLAG_SHOW_WALLPAPER y la vista pinta todo opaco. -->
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+    </style>
+</resources>
