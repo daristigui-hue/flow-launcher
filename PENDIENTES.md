@@ -7,6 +7,11 @@
 4. **Contador de aperturas** con el efecto del calendario (pospuesto).
 5. Pausa: límite diario propio por app (hoy compara contra el promedio).
 6. Pausa: frases en inglés junto con el resto de la app.
+7. **IA opcional con llave propia** (apagada de fábrica; nunca en el camino de abrir una app). Primero:
+   ponerle TIPO a las apps que caen en «otra» y buscar por intención («pedir comida»), mandando solo los
+   nombres de las apps. Las frases de la pausa con IA esperan a poder correr en el teléfono: Gemini Nano
+   vía ML Kit GenAI hoy solo sirve a apps de terceros del Pixel 9 en adelante, exige Gradle y la app en
+   primer plano.
 
 ## Hecho
 - v0.18: Opciones › APPS EN EL LISTADO › ELEGIR abre la lista completa con todas las apps, ocultas
