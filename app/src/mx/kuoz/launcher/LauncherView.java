@@ -487,9 +487,10 @@ final class LauncherView extends View {
         fondo(c, w, h, ahora);
         if (!BUSCA.equals(modo)) cabeza(c);
 
-        // Letra gigante de fondo cuando se muestra una letra: la del primer renglón a la vista
+        // Letra gigante de fondo: la del renglón marcado (con Z la tira topa al final y
+        // arriba queda otra letra; el marcado sí es la Z)
         if (enLetras() && !visibles.isEmpty()) {
-            char l = visibles.get(Math.min(primeraVisible(), visibles.size() - 1)).letra;
+            char l = visibles.get(Math.min(sel, visibles.size() - 1)).letra;
             if (l != letraVista) { letraVista = l; letraFondo.pos = .7f; letraFondo.objetivo = 1; }
         }
         mueve |= letraFondo.paso(dt, .002f);
