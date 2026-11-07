@@ -69,6 +69,8 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     private List<AppEntry> todas = new ArrayList<>();      // todas las del teléfono, ocultas incluidas
     private List<AppEntry> mostradas = new ArrayList<>();  // las que ve la vista (sin ocultas)
     private final Set<String> ocultas = new HashSet<>();
+    private final Set<String> pausadas = new HashSet<>();   // apps con pausa consciente
+    private boolean pausaEnCamino;                          // ya se están leyendo los datos de una
     private List<Carpeta> carpetas = new ArrayList<>();
 
     // Campo para escribir el nombre de una carpeta (con velo oscuro detrás)
@@ -146,6 +148,8 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
 
         String ocu = prefs.getString("ocultas", "");
         if (!ocu.isEmpty()) Collections.addAll(ocultas, ocu.split("\n"));
+        String pau = prefs.getString("pausa", "");
+        if (!pau.isEmpty()) Collections.addAll(pausadas, pau.split("\n"));
         carpetas = Carpeta.deJson(prefs.getString("carpetas", null));
         vista.setCarpetas(carpetas);
         velo = new View(this);
@@ -204,6 +208,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         super.onResume();
         vista.alVolver();
         vista.setWallpaperActual(wallpaperActual());
+        vista.setPermisoUso(UsoApps.permiso(this));
         // Con «Color del sistema», si cambió la paleta mientras estaba fuera, tomar la paleta nueva
         Skin nueva = Skin.FONDO.equals(skin.id) ? Skin.delFondo(this) : null;
         if (nueva != null && !nueva.igual(skin)) {   // repintar solo si el wallpaper sí cambió los colores
@@ -289,6 +294,9 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         List<AppEntry> escondidas = new ArrayList<>();
         for (AppEntry a : todas) (ocultas.contains(a.clave) ? escondidas : mostradas).add(a);
         vista.setOcultas(escondidas);
+        List<AppEntry> conPausa = new ArrayList<>();
+        for (AppEntry a : mostradas) if (pausadas.contains(a.clave)) conPausa.add(a);
+        vista.setPausadas(conPausa);
         vista.setApps(mostradas, favoritas());
         vista.setUsadas(masUsadas());
     }
@@ -386,7 +394,13 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     @Override
     public void abrir(final AppEntry a) {
         if (busca.getVisibility() == View.VISIBLE) ocultaBusca();
+        if (a.carpetaId == null && pausadas.contains(a.clave)) { iniciaPausa(a); return; }
+        abrirYa(a);
+    }
+
+    private void abrirYa(final AppEntry a) {
         cuentaUso(a);
+        if (pausadas.contains(a.clave)) suma(a.clave, 0);
         // Opción «al abrir una app»: con la franja completa la app se pide cuando ya cubrió la
         // pantalla (0.4 s, el efecto entero); al instante se pide ya y la franja corre encima.
         if (vista.franjaCompleta()) vista.corte(a.mayus, () -> lanzar(a));
@@ -401,6 +415,83 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         } catch (Exception e) {
             vista.alVolver();
             vista.aviso("NO ABRE");
+        }
+    }
+
+    // ───────────────────────── Pausa consciente ─────────────────────────
+    // Las cuentas del día (aperturas desde el launcher y veces que dijo MEJOR NO) viven en prefs
+    // «pausa_hoy»: la fecha en la 1ª línea y luego clave\tveces\tresiste. Cambia el día → se vacía.
+
+    private Map<String, int[]> cuentasHoy() {
+        Map<String, int[]> m = new HashMap<>();
+        String[] l = prefs.getString("pausa_hoy", "").split("\n");
+        if (l.length == 0 || !LocalDate.now().toString().equals(l[0])) return m;
+        for (int i = 1; i < l.length; i++) {
+            String[] c = l[i].split("\t");
+            if (c.length < 3) continue;
+            try { m.put(c[0], new int[]{Integer.parseInt(c[1]), Integer.parseInt(c[2])}); } catch (NumberFormatException ignorado) { }
+        }
+        return m;
+    }
+
+    /** cual: 0 = una apertura, 1 = un MEJOR NO. */
+    private void suma(String clave, int cual) {
+        Map<String, int[]> m = cuentasHoy();
+        int[] v = m.get(clave);
+        if (v == null) { v = new int[2]; m.put(clave, v); }
+        v[cual]++;
+        StringBuilder sb = new StringBuilder(LocalDate.now().toString());
+        for (Map.Entry<String, int[]> e : m.entrySet())
+            sb.append('\n').append(e.getKey()).append('\t').append(e.getValue()[0]).append('\t').append(e.getValue()[1]);
+        prefs.edit().putString("pausa_hoy", sb.toString()).apply();
+    }
+
+    private static String paquete(AppEntry a) {
+        if (a.comp != null) return a.comp.getPackageName();
+        if (a.intent == null) return null;
+        if (a.intent.getPackage() != null) return a.intent.getPackage();
+        return a.intent.getComponent() != null ? a.intent.getComponent().getPackageName() : null;
+    }
+
+    /** Lee el uso en otro hilo (recorre días de eventos) y arranca las nubes. */
+    private void iniciaPausa(final AppEntry a) {
+        if (pausaEnCamino || vista.enPausa()) return;
+        pausaEnCamino = true;
+        int[] v = cuentasHoy().get(a.clave);
+        final int veces = v == null ? 0 : v[0], resiste = v == null ? 0 : v[1];
+        final String pkg = paquete(a);
+        new Thread(() -> {
+            UsoApps.Dias uso = null;
+            try { uso = UsoApps.leer(this, pkg); } catch (RuntimeException ignorado) { }   // sin datos: salen solo las nubes básicas
+            final List<String> frases = Pausa.frases(uso, veces, java.util.Calendar.getInstance());
+            ui.post(() -> { pausaEnCamino = false; vista.pausa(a, frases, resiste); });
+        }, "pausa").start();
+    }
+
+    @Override
+    public void pausaElegida(AppEntry a, boolean abrir) {
+        if (abrir) abrirYa(a);
+        else suma(a.clave, 1);   // MEJOR NO: no cuenta como apertura
+    }
+
+    @Override
+    public void alternarPausa(AppEntry a) {
+        if (a.carpetaId != null) return;
+        boolean poner = !pausadas.contains(a.clave);
+        if (poner) pausadas.add(a.clave); else pausadas.remove(a.clave);
+        prefs.edit().putString("pausa", String.join("\n", pausadas)).apply();
+        publicaApps();
+        if (poner && !UsoApps.permiso(this)) { vista.aviso("DA EL PERMISO DE USO"); ui.postDelayed(this::permisoUso, 900); }
+        else vista.aviso(poner ? "PAUSA ◷" : "SIN PAUSA");
+    }
+
+    @Override
+    public void permisoUso() {
+        // En Pixel abre directo la página de Flow; si no, la lista de apps con acceso
+        try { startActivity(new Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:" + getPackageName()))); }
+        catch (Exception e) {
+            try { startActivity(new Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS)); }
+            catch (Exception e2) { vista.aviso("NO ABRE AJUSTES"); }
         }
     }
 

@@ -4,8 +4,15 @@
 1. **Widgets** en la pantalla de inicio (a futuro).
 2. Avisos bajo el nombre de la app (NotificationListener), como Niagara.
 3. **Inglés:** textos según el idioma del teléfono (hoy solo español).
+4. **Contador de aperturas** con el efecto del calendario (pospuesto).
+5. Pausa: límite diario propio por app (hoy compara contra el promedio).
 
 ## Hecho
+- v0.15: **pausa antes de abrir** (mantener una app › ◷ PAUSA ANTES DE ABRIR; lista en Opciones › PAUSA).
+  Al abrirla salen durante 5 s, sin poder saltarse, nubes de pensamiento en tercera persona: veces que
+  se abrió hoy, tiempo de hoy, % contra ayer, comparación con el promedio de los 7 días anteriores, la
+  hora y «¿A qué irá?». Luego MEJOR NO (no cuenta como apertura; cierra con «Esta vez no») o ABRIR.
+  El tiempo y el promedio piden el acceso «Uso de apps» de Android; los datos no salen del teléfono.
 - v0.14: Opciones › ABRIR AL SOLTAR (apagada por defecto): el dedo baja en un nombre, el cursor lo
   sigue y al levantar se abre esa app. En la lista completa, arrastrar sobre los nombres elige en vez
   de desplazar; con el dedo en la orilla la lista avanza sola. Soltar fuera o en la app de salida no abre.

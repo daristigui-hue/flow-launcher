@@ -60,6 +60,9 @@ final class LauncherView extends View {
         void mostrar(String clave);
         void alternarFranja();
         void alternarSoltar();
+        void alternarPausa(AppEntry a);             // pausa consciente antes de abrirla, sí/no
+        void pausaElegida(AppEntry a, boolean abrir);
+        void permisoUso();
     }
 
     static final String CARPETA = "carpeta:";   // prefijo del modo que muestra una carpeta
@@ -179,9 +182,16 @@ final class LauncherView extends View {
     private boolean opciones, iconos = true, wallpaper;
     private long tOpc;
     private String opcSkin = "", opcVersion = "";
-    private final RectF[] opcRect = new RectF[9];
+    private final RectF[] opcRect = new RectF[10];
     private static final int MAX_OCULTAS = 6;   // + fila de regresar = 7 ≤ opcRect
-    private int opcPagina;            // 0 principal · 1 carpetas · 2 una carpeta
+    private int opcPagina;            // 0 principal · 1 carpetas · 2 una carpeta · 3 ocultas · 4 pausa
+
+    // Pausa consciente
+    private Pausa pausa;
+    private List<AppEntry> conPausa = new ArrayList<>();
+    private final Set<String> clavesPausa = new HashSet<>();
+    private boolean permisoUso;
+    private static final int MAX_PAUSA = 6;   // + permiso + regresar = 8 ≤ opcRect
     private String opcCarpeta;
     private boolean opcConfirmaBorrar;
     private final Runnable largoItem = () -> {
@@ -257,6 +267,25 @@ final class LauncherView extends View {
     private List<AppEntry> ocultas = new ArrayList<>();
 
     void setOcultas(List<AppEntry> l) { ocultas = l; invalidate(); }
+
+    void setPausadas(List<AppEntry> l) {
+        conPausa = l;
+        clavesPausa.clear();
+        for (AppEntry a : l) clavesPausa.add(a.clave);
+        invalidate();
+    }
+
+    void setPermisoUso(boolean si) { permisoUso = si; invalidate(); }
+
+    /** Arranca la pausa consciente encima de todo (5 s, no se salta). */
+    void pausa(AppEntry a, List<String> frases, int resisteHoy) {
+        menuApp = null;
+        opciones = false;
+        pausa = new Pausa(a, frases, resisteHoy, this, d, negra, SystemClock.uptimeMillis());
+        invalidate();
+    }
+
+    boolean enPausa() { return pausa != null; }
 
     void setCarpetas(List<Carpeta> l) {
         carpetas = l;
@@ -344,6 +373,7 @@ final class LauncherView extends View {
 
     /** "Atrás": cierra opciones o el menú QUITAR. Devuelve true si cerró algo. */
     boolean cerrarCapas() {
+        if (pausa != null) { pausa.mejorNo(SystemClock.uptimeMillis()); invalidate(); return true; }   // atrás = MEJOR NO
         if (opciones) {
             if (opcPagina > 0) { opcPagina = opcPagina == 2 ? 1 : 0; opcConfirmaBorrar = false; tOpc = animaciones ? SystemClock.uptimeMillis() : 0; }
             else opciones = false;
@@ -570,6 +600,11 @@ final class LauncherView extends View {
         if (opciones) mueve |= opcionesDibuja(c, w, h, ahora);
         mueve |= corteDibuja(c, w, h, ahora);
         mueve |= calendarioDibuja(c, w, h, ahora, dt);
+        if (pausa != null) {
+            pausa.dibuja(c, w, h, insetArriba, insetAbajo, skin, ahora, dt);
+            mueve = true;
+            if (pausa.termino(ahora)) { AppEntry a = pausa.app; pausa = null; oyente.pausaElegida(a, false); }
+        }
 
         // Con algo moviéndose: a la tasa de la pantalla. Quieto: el fondo a ~20 fps
         // para no gastar batería (y nada si la ventana no se ve: onDraw ya no llega).
@@ -910,14 +945,17 @@ final class LauncherView extends View {
             menuOps.add(new String[]{"✕ QUITAR", "F"});
             menuOps.add(new String[]{"▣ A CARPETA ›", "C"});
             menuOps.add(new String[]{"⊘ OCULTAR APP", "O"});
+            menuOps.add(new String[]{clavesPausa.contains(a.clave) ? "◷ QUITAR PAUSA" : "◷ PAUSA ANTES DE ABRIR", "Z"});
         } else if (modo.startsWith(CARPETA)) {
             menuOps.add(new String[]{"↩ SACAR DE CARPETA", "S"});
             menuOps.add(new String[]{fav ? "✕ QUITAR DE FAVORITAS" : "★ FIJAR", "F"});
             menuOps.add(new String[]{"⊘ OCULTAR APP", "O"});
+            menuOps.add(new String[]{clavesPausa.contains(a.clave) ? "◷ QUITAR PAUSA" : "◷ PAUSA ANTES DE ABRIR", "Z"});
         } else {
             menuOps.add(new String[]{fav ? "✕ QUITAR DE FAVORITAS" : "★ FIJAR", "F"});
             menuOps.add(new String[]{"▣ A CARPETA ›", "C"});
             menuOps.add(new String[]{"⊘ OCULTAR APP", "O"});
+            menuOps.add(new String[]{clavesPausa.contains(a.clave) ? "◷ QUITAR PAUSA" : "◷ PAUSA ANTES DE ABRIR", "Z"});
         }
         tMenu = SystemClock.uptimeMillis();
         invalidate();
@@ -942,6 +980,7 @@ final class LauncherView extends View {
             case 'N': oyente.nuevaCarpeta(a); break;
             case 'S': oyente.sacarDeCarpeta(a, modo.substring(CARPETA.length())); break;
             case 'R': oyente.renombrarCarpeta(a.carpetaId); break;
+            case 'Z': oyente.alternarPausa(a); break;
             case 'O':
                 oyente.ocultar(a);
                 if (BUSCA.equals(modo)) { visibles.remove(a); sel = Math.min(sel, Math.max(0, visibles.size() - 1)); }
@@ -1182,7 +1221,7 @@ final class LauncherView extends View {
         c.drawRect(-w + fb * w, 0, fb * w * 1.6f, 70 * d, p);
         c.restore();
 
-        String tituloOpc = opcPagina == 0 ? "OPCIONES" : opcPagina == 1 ? "CARPETAS" : opcPagina == 3 ? "OCULTAS"
+        String tituloOpc = opcPagina == 0 ? "OPCIONES" : opcPagina == 1 ? "CARPETAS" : opcPagina == 3 ? "OCULTAS" : opcPagina == 4 ? "PAUSA"
                 : carpeta(opcCarpeta) != null ? carpeta(opcCarpeta).nombre.toUpperCase() : "CARPETA";
         float ft = entra.getInterpolation(Math.min(1, edad / 450f));
         c.save();
@@ -1260,20 +1299,7 @@ final class LauncherView extends View {
     }
 
     /** Banda en diagonal (skewX -24°). f: 0 fuera izq · 1 cubre · 2 fuera der. */
-    private void banda(Canvas c, int w, int h, float f, int color) {
-        if (f <= 0 || f >= 2) return;
-        float ancho = w * 1.4f, sesgo = (float) Math.tan(Math.toRadians(24)) * h;
-        float x = (f - 1) * (ancho + sesgo);
-        path.reset();
-        path.moveTo(x - w * .2f + sesgo, -h * .2f);
-        path.lineTo(x + ancho + sesgo, -h * .2f);
-        path.lineTo(x + ancho, h * 1.2f);
-        path.lineTo(x - w * .2f - sesgo, h * 1.2f);
-        path.close();
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(color);
-        c.drawPath(path, p);
-    }
+    private void banda(Canvas c, int w, int h, float f, int color) { Pausa.banda(c, path, p, w, h, f, color); }
 
     private boolean calendarioDibuja(Canvas c, int w, int h, long ahora, float dt) {
         if (tCal < 0) return false;
@@ -1346,6 +1372,15 @@ final class LauncherView extends View {
         int accion = e.getActionMasked();
 
         // Capas encima de la lista: se llevan el toque completo
+        if (pausa != null) {
+            if (accion == MotionEvent.ACTION_UP && pausa.toca(x, y, SystemClock.uptimeMillis()) == 1) {
+                AppEntry a = pausa.app;
+                pausa = null;
+                oyente.pausaElegida(a, true);
+            }
+            invalidate();
+            return true;
+        }
         if (opciones) {
             if (accion == MotionEvent.ACTION_UP) {
                 // La soltada del mismo dedo que abrió Opciones (mantener) no cuenta como toque:
@@ -1549,6 +1584,13 @@ final class LauncherView extends View {
             l.add(new String[]{"PANTALLA DE INICIO", "ELEGIR LAUNCHER ›"});
             l.add(new String[]{"AL ABRIR UNA APP", franjaCompleta ? "FRANJA COMPLETA" : "AL INSTANTE"});
             l.add(new String[]{"ABRIR AL SOLTAR", abrirAlSoltar ? "SÍ · DESLIZA Y SUELTA" : "NO · SOLO CON TOQUE"});
+            l.add(new String[]{"PAUSA ANTES DE ABRIR", conPausa.size() + " APPS · ADMINISTRAR ›"});
+        } else if (opcPagina == 4) {
+            l.add(new String[]{"PERMISO · USO DE APPS", permisoUso ? "SÍ · VE TIEMPO Y PROMEDIO" : "NO · DAR PERMISO ›"});
+            for (int i = 0; i < conPausa.size() && i < MAX_PAUSA; i++)
+                l.add(new String[]{"CON PAUSA · TOCA PARA QUITAR", conPausa.get(i).mayus});
+            if (conPausa.isEmpty()) l.add(new String[]{"NINGUNA", "MANTÉN UNA APP › PAUSA"});
+            l.add(new String[]{conPausa.size() > MAX_PAUSA ? "+" + (conPausa.size() - MAX_PAUSA) + " MÁS" : "", "‹ REGRESAR"});
         } else if (opcPagina == 3) {
             for (int i = 0; i < ocultas.size() && i < MAX_OCULTAS; i++)
                 l.add(new String[]{"OCULTA · TOCA PARA MOSTRAR", ocultas.get(i).mayus});
@@ -1589,6 +1631,13 @@ final class LauncherView extends View {
             else if (i == 6) { opciones = false; oyente.ajustesInicio(); }
             else if (i == 7) oyente.alternarFranja();
             else if (i == 8) oyente.alternarSoltar();
+            else if (i == 9) opcPagina = 4;
+        } else if (opcPagina == 4) {
+            int n = Math.min(conPausa.size(), MAX_PAUSA);
+            if (i == 0) { if (!permisoUso) { opciones = false; oyente.permisoUso(); } }
+            else if (i <= n) oyente.alternarPausa(conPausa.get(i - 1));   // la página se queda
+            else if (conPausa.isEmpty() && i == 1) { }
+            else opcPagina = 0;
         } else if (opcPagina == 3) {
             int n = Math.min(ocultas.size(), MAX_OCULTAS);
             if (i < n) oyente.mostrar(ocultas.get(i).clave);   // la página se queda: sale la siguiente
