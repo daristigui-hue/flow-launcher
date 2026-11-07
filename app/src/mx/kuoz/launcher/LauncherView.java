@@ -186,8 +186,7 @@ final class LauncherView extends View {
     private long tOpc;
     private String opcSkin = "", opcVersion = "";
     private final RectF[] opcRect = new RectF[10];
-    private static final int MAX_OCULTAS = 6;   // + fila de regresar = 7 ≤ opcRect
-    private int opcPagina;            // 0 principal · 1 carpetas · 2 una carpeta · 3 ocultas · 4 pausa
+    private int opcPagina;            // 0 principal · 1 carpetas · 2 una carpeta · 4 pausa
 
     // Pausa consciente
     private Pausa pausa;
@@ -198,8 +197,11 @@ final class LauncherView extends View {
     private static final int MAX_PAUSA = 6;   // + permiso + duración + regresar = 9 ≤ opcRect
     private String opcCarpeta;
     private boolean opcConfirmaBorrar;
+    /** Elegir el listado (Opciones › APPS EN EL LISTADO): la tira trae también las ocultas y
+     *  tocar una la muestra u oculta en vez de abrirla. */
+    private boolean editaListado;
     private final Runnable largoItem = () -> {
-        if (pulso >= 0 && pulso < visibles.size()) {
+        if (pulso >= 0 && pulso < visibles.size() && !editaListado) {
             largoHecho = true;
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
             if (FAV.equals(modo) || modo.startsWith(CARPETA)) {
@@ -258,19 +260,48 @@ final class LauncherView extends View {
         for (AppEntry a : favs) clavesFav.add(a.clave);
         porClave.clear();
         for (AppEntry a : todas) porClave.put(a.clave, a);
-        StringBuilder sb = new StringBuilder().append(FAVS_LETRA);
-        boolean hayNumero = false;
-        for (char l = 'A'; l <= 'Z'; l++) for (AppEntry a : todas) if (a.letra == l) { sb.append(l); break; }
-        for (AppEntry a : todas) if (a.letra == '#') { hayNumero = true; break; }
-        if (hayNumero) sb.append('#');
-        if (!olaActiva) { letras = sb.toString(); letraAct = -1; }
+        if (!olaActiva) rehaceLetras();
         if (!BUSCA.equals(modo)) refresca();
         else invalidate();
     }
 
-    private List<AppEntry> ocultas = new ArrayList<>();
+    /** Solo las letras que tienen apps en la tira. */
+    private void rehaceLetras() {
+        StringBuilder sb = new StringBuilder().append(FAVS_LETRA);
+        boolean hayNumero = false;
+        for (char l = 'A'; l <= 'Z'; l++) for (AppEntry a : tira()) if (a.letra == l) { sb.append(l); break; }
+        for (AppEntry a : tira()) if (a.letra == '#') { hayNumero = true; break; }
+        if (hayNumero) sb.append('#');
+        letras = sb.toString(); letraAct = -1;
+    }
 
-    void setOcultas(List<AppEntry> l) { ocultas = l; invalidate(); }
+    private List<AppEntry> ocultas = new ArrayList<>();
+    private final Set<String> clavesOcultas = new HashSet<>();
+    private List<AppEntry> completas = new ArrayList<>();   // todas, ocultas incluidas, en orden
+
+    private List<AppEntry> tira() { return editaListado ? completas : todas; }
+
+    void setOcultas(List<AppEntry> l, List<AppEntry> completas) {
+        ocultas = l;
+        this.completas = completas;
+        clavesOcultas.clear();
+        for (AppEntry a : l) clavesOcultas.add(a.clave);
+        invalidate();
+    }
+
+    private void entraListado() {
+        if (letras.length() < 2) return;
+        opciones = false;
+        editaListado = true;
+        rehaceLetras();
+        pinta(String.valueOf(letras.charAt(1)), true);
+    }
+
+    /** LISTO o atrás: de vuelta a Opciones, con inicio detrás. */
+    private void saleListado() {
+        pinta(FAV, false);   // apaga editaListado
+        abrirOpciones();
+    }
 
     void setPausadas(List<AppEntry> l) {
         conPausa = l;
@@ -320,7 +351,7 @@ final class LauncherView extends View {
             visibles.clear();
             if (c != null) visibles.addAll(appsDe(c));
         }
-        else if (enLetras()) { visibles.clear(); visibles.addAll(todas); scroll = Math.min(scroll, scrollMax()); }
+        else if (enLetras()) { visibles.clear(); visibles.addAll(tira()); scroll = Math.min(scroll, scrollMax()); }
         sel = Math.min(sel, Math.max(0, visibles.size() - 1));
         invalidate();
     }
@@ -387,6 +418,7 @@ final class LauncherView extends View {
             return true;
         }
         if (menuApp != null) { menuApp = null; invalidate(); return true; }
+        if (editaListado) { saleListado(); return true; }
         return false;
     }
 
@@ -396,6 +428,7 @@ final class LauncherView extends View {
 
     void filtrar(String q) {
         String plano = AppEntry.sinAcentos(q).toLowerCase().trim();
+        if (editaListado) { editaListado = false; rehaceLetras(); }
         if (enLetras()) { cursorY.pos = 0; scroll = 0; }   // venía de la tira: otras coordenadas
         visibles.clear();
         for (AppEntry a : todas) {
@@ -479,6 +512,7 @@ final class LauncherView extends View {
     private void pinta(String nuevo, boolean conEntrada) {
         boolean eraLetras = enLetras();
         modo = nuevo;
+        if (editaListado && !enLetras()) { editaListado = false; rehaceLetras(); }
         filaY.clear();
         menuApp = null;
         visibles.clear();
@@ -488,7 +522,7 @@ final class LauncherView extends View {
             Carpeta c = carpeta(nuevo.substring(CARPETA.length()));
             if (c != null) visibles.addAll(appsDe(c));
         }
-        else if (!BUSCA.equals(nuevo)) visibles.addAll(todas);
+        else if (!BUSCA.equals(nuevo)) visibles.addAll(tira());
         duracionEntrada = 550f;
         scrollVel = 0; scrollMeta = Float.NaN;
         if (!enLetras()) scroll = 0;
@@ -811,7 +845,9 @@ final class LauncherView extends View {
             if (prog < 1f || (ahora - tEntrada) < duracionEntrada + (i - desde) * 45 + 50) mueve = true;
             if (tira) {
                 // En la tira cada renglón va pegado al desplazamiento, sin resorte propio
-                fila(c, a, i, listaArriba + i * filaAlto + filaAlto / 2f - scroll, prog, i == sel, 0, 1);
+                float cy0 = listaArriba + i * filaAlto + filaAlto / 2f - scroll;
+                fila(c, a, i, cy0, prog, i == sel, 0, 1);
+                if (editaListado) marca(c, clavesOcultas.contains(a.clave), cy0);
                 continue;
             }
             // Cada renglón va a su lugar con resorte: al reordenar, los demás se hacen a un lado con rebote
@@ -829,6 +865,7 @@ final class LauncherView extends View {
             mueve = true;
         }
         if (tira) c.restore();
+        if (editaListado) pieListado(c);
         if (menuApp != null) { menuDibuja(c, ahora); mueve |= ahora - tMenu < 500; }
         return mueve;
     }
@@ -860,6 +897,35 @@ final class LauncherView extends View {
         if (enLetras()) return listaArriba + i * filaAlto + filaAlto / 2f - scroll;
         Resorte r = i < visibles.size() ? filaY.get(visibles.get(i).clave) : null;
         return r != null ? r.pos : listaArriba + i * filaAlto + filaAlto / 2f;
+    }
+
+    /** ✓ = sale en el listado · ⊘ = oculta. A la izquierda de la ola. */
+    private void marca(Canvas c, boolean oculta, float centro) {
+        float tam = t.getTextSize(), esp = t.getLetterSpacing();
+        t.setTextAlign(Paint.Align.CENTER); t.setTextSize(24 * d); t.setLetterSpacing(0);
+        float x = getWidth() - 96 * d;
+        t.setColor(Color.BLACK); t.setAlpha(170);
+        c.drawText(oculta ? "⊘" : "✓", x + 2 * d, centro + 10 * d, t);
+        t.setColor(oculta ? skin.hielo : skin.cian); t.setAlpha(oculta ? 150 : 255);
+        c.drawText(oculta ? "⊘" : "✓", x, centro + 8 * d, t);
+        t.setAlpha(255); t.setTextAlign(Paint.Align.LEFT); t.setTextSize(tam); t.setLetterSpacing(esp);
+    }
+
+    /** Leyenda arriba de la tira y botón LISTO abajo. */
+    private void pieListado(Canvas c) {
+        float tam = t.getTextSize(), esp = t.getLetterSpacing();
+        t.setTextAlign(Paint.Align.LEFT); t.setTextSize(12 * d); t.setLetterSpacing(.2f);
+        t.setColor(skin.hielo); t.setAlpha(200);
+        c.drawText("TOCA PARA MOSTRAR U OCULTAR · " + ocultas.size() + " OCULTAS", 20 * d, listaArriba - 14 * d, t);
+        t.setAlpha(255);
+        float cx = (getWidth() - 72 * d) / 2f, y = listaAbajo() + 10 * d, an = 150 * d, al = 40 * d;
+        float[] forma = {0, .1f, 1, 0, .97f, 1, .02f, .92f};
+        poligono(c, cx - an / 2 + 6 * d, y + 6 * d, an, al, forma, Color.BLACK);
+        poligono(c, cx - an / 2, y, an, al, forma, skin.fuerte);
+        t.setTextAlign(Paint.Align.CENTER); t.setTextSize(18 * d); t.setLetterSpacing(.15f);
+        t.setColor(skin.blanco);
+        c.drawText("LISTO ✓", cx, y + al / 2 + 6 * d, t);
+        t.setTextAlign(Paint.Align.LEFT); t.setTextSize(tam); t.setLetterSpacing(esp);
     }
 
     /** Un renglón: etiqueta con ícono (si están activos) y el nombre ladeado. */
@@ -923,7 +989,9 @@ final class LauncherView extends View {
             t.setAlpha(255);
         }
         t.setColor(elegido && !levanta ? Color.BLACK : skin.blanco);
+        if (editaListado && !elegido && clavesOcultas.contains(a.clave)) t.setAlpha(110);
         c.drawText(a.mayus, tx, ty, t);
+        t.setAlpha(255);
         if (cp != null) {
             float tam = t.getTextSize(), esp = t.getLetterSpacing();
             t.setTextSize(10 * d); t.setLetterSpacing(.2f);
@@ -1249,7 +1317,7 @@ final class LauncherView extends View {
         c.drawRect(-w + fb * w, 0, fb * w * 1.6f, 70 * d, p);
         c.restore();
 
-        String tituloOpc = opcPagina == 0 ? "OPCIONES" : opcPagina == 1 ? "CARPETAS" : opcPagina == 3 ? "OCULTAS" : opcPagina == 4 ? "PAUSA"
+        String tituloOpc = opcPagina == 0 ? "OPCIONES" : opcPagina == 1 ? "CARPETAS" : opcPagina == 4 ? "PAUSA"
                 : carpeta(opcCarpeta) != null ? carpeta(opcCarpeta).nombre.toUpperCase() : "CARPETA";
         float ft = entra.getInterpolation(Math.min(1, edad / 450f));
         c.save();
@@ -1448,7 +1516,7 @@ final class LauncherView extends View {
                     vt.addMovement(e);
                     if (corria) { largoHecho = true; return true; }
                     // Abrir al soltar: sobre un nombre el dedo elige en vez de desplazar
-                    if (abrirAlSoltar && filaEn(x, y) >= 0) tiraToque = false;
+                    if (abrirAlSoltar && !editaListado && filaEn(x, y) >= 0) tiraToque = false;
                 }
                 if (tCal >= 0) { tCal = Math.min(tCal, SystemClock.uptimeMillis() - 2400); return true; }
                 if (corte != NADA) return true;
@@ -1467,10 +1535,10 @@ final class LauncherView extends View {
                 eligiendo = false; autoScroll = 0;
                 if (i >= 0) {
                     pulso = i;
-                    if (abrirAlSoltar) { eligiendo = true; eligeOrigen = i; eligeX = x; eligeY = y; }
+                    if (abrirAlSoltar && !editaListado) { eligiendo = true; eligeOrigen = i; eligeX = x; eligeY = y; }
                     if (sel != i) { sel = i; performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); }
                     ui.postDelayed(largoItem, 550);
-                } else if (!BUSCA.equals(modo)) {
+                } else if (!BUSCA.equals(modo) && !editaListado) {
                     // Mantener en la hora o en cualquier espacio vacío → Opciones
                     ui.postDelayed(largoVacio, 600);
                 }
@@ -1554,6 +1622,17 @@ final class LauncherView extends View {
                     return true;
                 }
                 eligiendo = false;
+                if (editaListado && !arrastre && pulso < 0 && y > listaAbajo() && x < getWidth() - 72 * d) {
+                    performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                    saleListado();   // LISTO
+                    return true;
+                }
+                if (editaListado && pulso >= 0 && !arrastre && sel < visibles.size()) {
+                    pulso = -1;
+                    AppEntry a = visibles.get(sel);
+                    if (clavesOcultas.contains(a.clave)) oyente.mostrar(a.clave); else oyente.ocultar(a);
+                    return true;
+                }
                 if (pulso >= 0 && !arrastre && sel < visibles.size()) {
                     pulso = -1;
                     AppEntry a = visibles.get(sel);
@@ -1609,7 +1688,7 @@ final class LauncherView extends View {
             l.add(new String[]{"FONDO", wallpaper ? "WALLPAPER DEL TELÉFONO" : "ANIMADO"});
             l.add(new String[]{"WALLPAPER · AHORA: " + wallpaperActual, "CAMBIAR ›"});
             l.add(new String[]{"CARPETAS", carpetas.size() + " · ADMINISTRAR ›"});
-            l.add(new String[]{"APPS OCULTAS", ocultas.size() + " · ADMINISTRAR ›"});
+            l.add(new String[]{"APPS EN EL LISTADO", ocultas.size() + " OCULTAS · ELEGIR ›"});
             l.add(new String[]{"PANTALLA DE INICIO", "ELEGIR LAUNCHER ›"});
             l.add(new String[]{"AL ABRIR UNA APP", franjaCompleta ? "FRANJA COMPLETA" : "AL INSTANTE"});
             l.add(new String[]{"ABRIR AL SOLTAR", abrirAlSoltar ? "SÍ · DESLIZA Y SUELTA" : "NO · SOLO CON TOQUE"});
@@ -1621,11 +1700,6 @@ final class LauncherView extends View {
                 l.add(new String[]{"CON PAUSA · TOCA PARA QUITAR", conPausa.get(i).mayus});
             if (conPausa.isEmpty()) l.add(new String[]{"NINGUNA", "MANTÉN UNA APP › PAUSA"});
             l.add(new String[]{conPausa.size() > MAX_PAUSA ? "+" + (conPausa.size() - MAX_PAUSA) + " MÁS" : "", "‹ REGRESAR"});
-        } else if (opcPagina == 3) {
-            for (int i = 0; i < ocultas.size() && i < MAX_OCULTAS; i++)
-                l.add(new String[]{"OCULTA · TOCA PARA MOSTRAR", ocultas.get(i).mayus});
-            if (ocultas.isEmpty()) l.add(new String[]{"NINGUNA", "MANTÉN UNA APP › OCULTAR"});
-            l.add(new String[]{ocultas.size() > MAX_OCULTAS ? "+" + (ocultas.size() - MAX_OCULTAS) + " MÁS" : "", "‹ REGRESAR"});
         } else if (opcPagina == 1) {
             for (int i = 0; i < carpetas.size() && i < 5; i++) {
                 Carpeta c = carpetas.get(i);
@@ -1657,7 +1731,7 @@ final class LauncherView extends View {
             else if (i == 2) oyente.alternarFondo();
             else if (i == 3) { opciones = false; oyente.cambiarWallpaper(); }
             else if (i == 4) opcPagina = 1;
-            else if (i == 5) opcPagina = 3;
+            else if (i == 5) { entraListado(); return; }
             else if (i == 6) { opciones = false; oyente.ajustesInicio(); }
             else if (i == 7) oyente.alternarFranja();
             else if (i == 8) oyente.alternarSoltar();
@@ -1668,11 +1742,6 @@ final class LauncherView extends View {
             else if (i == 1) oyente.cambiarDuracion();
             else if (i <= n + 1) oyente.alternarPausa(conPausa.get(i - 2));   // la página se queda
             else if (conPausa.isEmpty() && i == 2) { }
-            else opcPagina = 0;
-        } else if (opcPagina == 3) {
-            int n = Math.min(ocultas.size(), MAX_OCULTAS);
-            if (i < n) oyente.mostrar(ocultas.get(i).clave);   // la página se queda: sale la siguiente
-            else if (ocultas.isEmpty() && i == 0) { }
             else opcPagina = 0;
         } else if (opcPagina == 1) {
             int n = Math.min(carpetas.size(), 5);

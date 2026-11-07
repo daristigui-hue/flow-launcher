@@ -9,6 +9,10 @@
 6. Pausa: frases en inglés junto con el resto de la app.
 
 ## Hecho
+- v0.18: Opciones › APPS EN EL LISTADO › ELEGIR abre la lista completa con todas las apps, ocultas
+  incluidas (tenues). ✓ = sale en el listado, ⊘ = oculta; tocar una la cambia sin abrirla. Se desliza y
+  la ola salta por letra como siempre. LISTO (o atrás) regresa a Opciones. Las ocultas tampoco salen en
+  la búsqueda ni en favoritas.
 - v0.17: las nubes con datos ya no suenan a reporte: las hace alguien que observa. Lo bueno sale con
   decepción («Qué mal… hoy iba 35 % mejor que ayer», «Llevaba 4 días bajo su promedio… ¿y ahora?») y lo
   malo con burla («40 % más que ayer… ¿y todavía quiere más?»). Varias variantes que se turnan.

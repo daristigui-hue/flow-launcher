@@ -294,7 +294,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         mostradas = new ArrayList<>();
         List<AppEntry> escondidas = new ArrayList<>();
         for (AppEntry a : todas) (ocultas.contains(a.clave) ? escondidas : mostradas).add(a);
-        vista.setOcultas(escondidas);
+        vista.setOcultas(escondidas, todas);
         List<AppEntry> conPausa = new ArrayList<>();
         for (AppEntry a : mostradas) if (pausadas.contains(a.clave)) conPausa.add(a);
         vista.setPausadas(conPausa);
