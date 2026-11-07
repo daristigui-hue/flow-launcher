@@ -1,14 +1,15 @@
 # Pendientes / ideas
 
 ## App
-1. **Lista continua en las letras.** Hoy, al soltar en una letra solo salen las apps de esa
-   letra. Debe ser una sola tira con TODAS las apps en orden alfabético: la letra no encasilla,
-   solo lleva a donde empiezan las de esa letra, y desde ahí se puede seguir deslizando.
-2. **Widgets** en la pantalla de inicio (a futuro).
-3. **Color según el wallpaper:** que la skin tome sus colores del wallpaper actual
+1. **Widgets** en la pantalla de inicio (a futuro).
+2. **Color según el wallpaper:** que la skin tome sus colores del wallpaper actual
    (Android 12+ da la paleta del fondo: `WallpaperManager.getWallpaperColors`).
-4. Avisos bajo el nombre de la app (NotificationListener), como Niagara.
-5. **Inglés:** textos según el idioma del teléfono (hoy solo español).
+3. Avisos bajo el nombre de la app (NotificationListener), como Niagara.
+4. **Inglés:** textos según el idioma del teléfono (hoy solo español).
+
+## Hecho
+- v0.9: la ola ya no encasilla en una letra. Lleva a donde empieza esa letra dentro de una sola
+  lista con todas las apps, que se desliza con el dedo y sigue de largo con inercia.
 
 ## Darlo a conocer
 1. Capturas y un video corto en el README.

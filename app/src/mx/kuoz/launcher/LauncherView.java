@@ -93,6 +93,12 @@ final class LauncherView extends View {
     private String modo = FAV;
     private int sel = 0;
 
+    // Letras: una sola tira con todas las apps; la letra solo la desplaza (v0.9)
+    private float scroll, scrollVel, scrollMeta = Float.NaN, scroll0;
+    private boolean desliza;
+    private char letraVista;
+    private android.view.VelocityTracker vt;
+
     // Geometría
     private int insetArriba, insetAbajo;
     private float filaAlto, listaArriba;
@@ -140,7 +146,7 @@ final class LauncherView extends View {
     // Toque
     private float x0, y0;
     private int pulso = -1;
-    private boolean arrastre, cambio, largoHecho;
+    private boolean arrastre, cambio, largoHecho, tiraToque;
 
     // Favorita "levantada" para reordenar (mantener + arrastrar)
     private int levantada = -1, levOrigen = -1;
@@ -233,7 +239,7 @@ final class LauncherView extends View {
         for (AppEntry a : todas) if (a.letra == '#') { hayNumero = true; break; }
         if (hayNumero) sb.append('#');
         if (!olaActiva) { letras = sb.toString(); letraAct = -1; }
-        if (FAV.equals(modo) || modo.startsWith(CARPETA)) refresca();
+        if (!BUSCA.equals(modo)) refresca();
         else invalidate();
     }
 
@@ -267,6 +273,7 @@ final class LauncherView extends View {
             visibles.clear();
             if (c != null) visibles.addAll(appsDe(c));
         }
+        else if (enLetras()) { visibles.clear(); visibles.addAll(todas); scroll = Math.min(scroll, scrollMax()); }
         sel = Math.min(sel, Math.max(0, visibles.size() - 1));
         invalidate();
     }
@@ -321,6 +328,7 @@ final class LauncherView extends View {
 
     void filtrar(String q) {
         String plano = AppEntry.sinAcentos(q).toLowerCase().trim();
+        if (enLetras()) { cursorY.pos = 0; scroll = 0; }   // venía de la tira: otras coordenadas
         visibles.clear();
         for (AppEntry a : todas) {
             if (a.plano.contains(plano)) visibles.add(a);
@@ -333,6 +341,34 @@ final class LauncherView extends View {
     }
 
     AppEntry primero() { return visibles.isEmpty() ? null : visibles.get(0); }
+
+    /** Modo letra: la lista es la tira completa y se desplaza. */
+    private boolean enLetras() { return !FAV.equals(modo) && !BUSCA.equals(modo) && !modo.startsWith(CARPETA); }
+
+    private float desp() { return enLetras() ? scroll : 0; }
+
+    private float listaAbajo() { return getHeight() - insetAbajo - 60 * d; }
+
+    private float scrollMax() { return Math.max(0, visibles.size() * filaAlto - (listaAbajo() - listaArriba)); }
+
+    private int indiceLetra(char l) {
+        for (int i = 0; i < visibles.size(); i++) if (visibles.get(i).letra == l) return i;
+        return 0;
+    }
+
+    /** Primer renglón (en todo o en parte) a la vista. */
+    private int primeraVisible() { return Math.max(0, (int) Math.floor(desp() / filaAlto)); }
+
+    /** Lleva la tira a donde empieza la letra; {@code suave} = se desliza, si no salta. */
+    private void irALetra(char l, boolean suave) {
+        int i = indiceLetra(l);
+        float meta = Math.min(scrollMax(), i * filaAlto);
+        scrollVel = 0;
+        if (suave) scrollMeta = meta; else { scroll = meta; scrollMeta = Float.NaN; }
+        sel = i;
+        cursorY.fija(listaArriba + i * filaAlto + filaAlto / 2f);
+        invalidate();
+    }
 
     /** Barrido diagonal; cuando la pantalla queda cubierta corre {@code luego} (abrir la app). */
     void corte(String nombre, Runnable luego) {
@@ -373,6 +409,7 @@ final class LauncherView extends View {
     // ───────────────────────── Lista ─────────────────────────
 
     private void pinta(String nuevo, boolean conEntrada) {
+        boolean eraLetras = enLetras();
         modo = nuevo;
         filaY.clear();
         menuApp = null;
@@ -382,12 +419,19 @@ final class LauncherView extends View {
             Carpeta c = carpeta(nuevo.substring(CARPETA.length()));
             if (c != null) visibles.addAll(appsDe(c));
         }
-        else if (!BUSCA.equals(nuevo)) for (AppEntry a : todas) if (String.valueOf(a.letra).equals(nuevo)) visibles.add(a);
+        else if (!BUSCA.equals(nuevo)) visibles.addAll(todas);
         duracionEntrada = 550f;
+        scrollVel = 0; scrollMeta = Float.NaN;
+        if (!enLetras()) scroll = 0;
         if (FAV.equals(nuevo)) letraFondo.objetivo = 0;
         else if (!BUSCA.equals(nuevo)) { letraFondo.pos = .6f; letraFondo.objetivo = 1; }
         if (conEntrada) reiniciaEntrada();
         else { sel = Math.min(sel, Math.max(0, visibles.size() - 1)); invalidate(); }
+        if (enLetras()) {
+            geometria();
+            irALetra(nuevo.charAt(0), false);
+            letraVista = nuevo.charAt(0);
+        } else if (eraLetras) cursorY.pos = 0;   // coordenadas de la tira ≠ de la lista: que no vuele
     }
 
     private void reiniciaEntrada() {
@@ -403,7 +447,8 @@ final class LauncherView extends View {
         int n = Math.max(1, visibles.size());
         filaAlto = Math.max(44 * d, Math.min(64 * d, (abajo - arriba) / n));
         listaArriba = arriba;
-        if (!BUSCA.equals(modo)) {
+        if (enLetras()) filaAlto = Math.max(44 * d, Math.min(56 * d, (abajo - arriba) / Math.min(n, 7)));
+        else if (!BUSCA.equals(modo)) {
             // Centrada en el espacio libre: con pocas apps (una letra) queda a media pantalla,
             // al alcance del pulgar, no pegada a la hora (v0.4)
             float bloque = Math.min(n, (int) ((abajo - arriba) / filaAlto)) * filaAlto;
@@ -412,13 +457,18 @@ final class LauncherView extends View {
     }
 
     private int filasQueCaben() {
-        float abajo = getHeight() - insetAbajo - 60 * d;
+        float abajo = listaAbajo();
+        if (enLetras()) {
+            // En la tira: hasta el último renglón que asoma por abajo
+            return Math.min(visibles.size(), (int) Math.ceil((abajo - listaArriba + scroll) / filaAlto));
+        }
         return Math.min(visibles.size(), (int) ((abajo - listaArriba) / filaAlto));
     }
 
     private int filaEn(float x, float y) {
         if (x > getWidth() - 72 * d) return -1;
-        int i = (int) Math.floor((y - listaArriba) / filaAlto);
+        if (enLetras() && (y < listaArriba || y > listaAbajo())) return -1;
+        int i = (int) Math.floor((y - listaArriba + desp()) / filaAlto);
         return (i >= 0 && i < filasQueCaben()) ? i : -1;
     }
 
@@ -437,7 +487,11 @@ final class LauncherView extends View {
         fondo(c, w, h, ahora);
         if (!BUSCA.equals(modo)) cabeza(c);
 
-        // Letra gigante de fondo cuando se muestra una letra
+        // Letra gigante de fondo cuando se muestra una letra: la del primer renglón a la vista
+        if (enLetras() && !visibles.isEmpty()) {
+            char l = visibles.get(Math.min(primeraVisible(), visibles.size() - 1)).letra;
+            if (l != letraVista) { letraVista = l; letraFondo.pos = .7f; letraFondo.objetivo = 1; }
+        }
         mueve |= letraFondo.paso(dt, .002f);
         if (!FAV.equals(modo) && !BUSCA.equals(modo) && letraFondo.pos > .01f) {
             c.save();
@@ -445,7 +499,7 @@ final class LauncherView extends View {
             c.rotate(-10);
             c.scale(letraFondo.pos, letraFondo.pos);
             t.setTextAlign(Paint.Align.RIGHT);
-            String gigante = modo;
+            String gigante = enLetras() ? String.valueOf(letraVista) : modo;
             t.setTextSize(240 * d);
             if (modo.startsWith(CARPETA)) {
                 Carpeta cp = carpeta(modo.substring(CARPETA.length()));
@@ -632,6 +686,17 @@ final class LauncherView extends View {
             return false;
         }
         if (sel >= n) sel = n - 1;
+        boolean tira = enLetras();
+        int desde = 0;
+        if (tira) {
+            mueve |= pasoScroll(dt);
+            desde = primeraVisible();
+            n = filasQueCaben();
+            if (sel < desde || sel >= n) sel = Math.max(desde, Math.min(n - 1, sel));
+            // Los renglones que salen por arriba o abajo se cortan en la orilla de la lista
+            c.save();
+            c.clipRect(0, listaArriba - 4 * d, getWidth(), listaAbajo() + 4 * d);
+        }
 
         t.setTextAlign(Paint.Align.LEFT);
         t.setLetterSpacing(-.01f);
@@ -646,8 +711,8 @@ final class LauncherView extends View {
         mueve |= cursorY.paso(dt, .5f);
         mueve |= cursorAncho.paso(dt, .5f);
         if (ahora - tDentado > 140) { nuevoDentado(); tDentado = ahora; }
-        float cx = 4 * d, cw = cursorAncho.pos, ch = Math.min(70 * d, filaAlto + 6 * d), cy = cursorY.pos - ch / 2f;
-        float ent0 = progresoEntrada(sel, ahora);
+        float cx = 4 * d, cw = cursorAncho.pos, ch = Math.min(70 * d, filaAlto + 6 * d), cy = cursorY.pos - desp() - ch / 2f;
+        float ent0 = progresoEntrada(sel - desde, ahora);
         if (ent0 > .2f && levantada < 0) {
             c.save();
             c.translate(cx, cy);
@@ -657,10 +722,15 @@ final class LauncherView extends View {
             c.restore();
         }
 
-        for (int i = 0; i < n; i++) {
+        for (int i = desde; i < n; i++) {
             AppEntry a = visibles.get(i);
-            float prog = progresoEntrada(i, ahora);
-            if (prog < 1f || (ahora - tEntrada) < duracionEntrada + i * 45 + 50) mueve = true;
+            float prog = progresoEntrada(i - desde, ahora);
+            if (prog < 1f || (ahora - tEntrada) < duracionEntrada + (i - desde) * 45 + 50) mueve = true;
+            if (tira) {
+                // En la tira cada renglón va pegado al desplazamiento, sin resorte propio
+                fila(c, a, i, listaArriba + i * filaAlto + filaAlto / 2f - scroll, prog, i == sel, 0, 1);
+                continue;
+            }
             // Cada renglón va a su lugar con resorte: al reordenar, los demás se hacen a un lado con rebote
             Resorte r = filaY.get(a.clave);
             float objetivo = listaArriba + i * filaAlto + filaAlto / 2f;
@@ -675,11 +745,29 @@ final class LauncherView extends View {
             fila(c, visibles.get(levantada), levantada, levY - levAgarre, 1, true, -3, levEscala.pos);
             mueve = true;
         }
+        if (tira) c.restore();
         if (menuApp != null) { menuDibuja(c, ahora); mueve |= ahora - tMenu < 500; }
         return mueve;
     }
 
+    /** Inercia del deslizamiento y viaje suave a una letra. true mientras se mueva. */
+    private boolean pasoScroll(float dt) {
+        if (desliza) return false;   // el dedo manda
+        float max = scrollMax();
+        if (!Float.isNaN(scrollMeta)) {
+            scroll += (scrollMeta - scroll) * Math.min(1, dt * 16);
+            if (Math.abs(scrollMeta - scroll) < .5f) { scroll = scrollMeta; scrollMeta = Float.NaN; return false; }
+            return true;
+        }
+        if (Math.abs(scrollVel) < 20 * d) { scrollVel = 0; return false; }
+        scroll += scrollVel * Math.min(dt, 1f / 30f);
+        scrollVel *= (float) Math.exp(-3.2f * dt);
+        if (scroll < 0 || scroll > max) { scroll = Math.max(0, Math.min(max, scroll)); scrollVel = 0; }
+        return true;
+    }
+
     private float centroFila(int i) {
+        if (enLetras()) return listaArriba + i * filaAlto + filaAlto / 2f - scroll;
         Resorte r = i < visibles.size() ? filaY.get(visibles.get(i).clave) : null;
         return r != null ? r.pos : listaArriba + i * filaAlto + filaAlto / 2f;
     }
@@ -810,9 +898,10 @@ final class LauncherView extends View {
             case 'O':
                 oyente.ocultar(a);
                 if (BUSCA.equals(modo)) { visibles.remove(a); sel = Math.min(sel, Math.max(0, visibles.size() - 1)); }
-                else if (!FAV.equals(modo) && !modo.startsWith(CARPETA)) {
-                    pinta(modo, false);
-                    if (visibles.isEmpty()) pinta(FAV, true);   // era la única app de esa letra
+                else if (enLetras()) {
+                    visibles.remove(a);
+                    scroll = Math.min(scroll, scrollMax());
+                    if (visibles.isEmpty()) pinta(FAV, true);   // era la última app visible
                 }
                 break;
         }
@@ -1207,6 +1296,16 @@ final class LauncherView extends View {
         switch (accion) {
             case MotionEvent.ACTION_DOWN:
                 x0 = x; y0 = y; arrastre = false; cambio = false; largoHecho = false; pulso = -1;
+                desliza = false;
+                tiraToque = enLetras() && x < getWidth() - 72 * d && y >= listaArriba && y <= listaAbajo();
+                if (tiraToque) {
+                    // Tocar la tira mientras corre solo la frena; no abre lo que pasaba debajo
+                    boolean corria = Math.abs(scrollVel) > 300 * d || !Float.isNaN(scrollMeta);
+                    scroll0 = scroll; scrollVel = 0; scrollMeta = Float.NaN;
+                    if (vt == null) vt = android.view.VelocityTracker.obtain(); else vt.clear();
+                    vt.addMovement(e);
+                    if (corria) { largoHecho = true; return true; }
+                }
                 if (tCal >= 0) { tCal = Math.min(tCal, SystemClock.uptimeMillis() - 2400); return true; }
                 if (corte != NADA) return true;
                 if (x > getWidth() - 72 * d && y > olaArriba() - 24 * d && y < olaAbajo() + 24 * d) {
@@ -1234,6 +1333,13 @@ final class LauncherView extends View {
                     if (!arrastre) { ui.removeCallbacks(largoItem); ui.removeCallbacks(largoVacio); }
                     arrastre = true;
                 }
+                if (tiraToque) {
+                    // En la tira el dedo la desplaza (no mueve el cursor) y se puede pasar de letra
+                    vt.addMovement(e);
+                    if (!desliza && arrastre && Math.abs(y - y0) > Math.abs(x - x0)) { desliza = true; y0 = y; scroll0 = scroll; }
+                    if (desliza) { scroll = Math.max(0, Math.min(scrollMax(), scroll0 - (y - y0))); invalidate(); }
+                    return true;
+                }
                 if (pulso >= 0) {
                     // Pasar el dedo solo mueve el cursor; abrir es únicamente con toque
                     int j = filaEn(Math.min(x, getWidth() - 80 * d), y);
@@ -1249,6 +1355,16 @@ final class LauncherView extends View {
                 ui.removeCallbacks(largoItem); ui.removeCallbacks(largoVacio);
                 if (olaActiva) { olaSuelta(); return true; }
                 if (levantada >= 0) { sueltaLevantada(); return true; }
+                if (desliza) {
+                    // Se suelta con impulso: la tira sigue de largo y frena sola
+                    vt.addMovement(e);
+                    vt.computeCurrentVelocity(1000);
+                    scrollVel = -vt.getYVelocity();
+                    desliza = false; tiraToque = false; pulso = -1;
+                    invalidate();
+                    return true;
+                }
+                tiraToque = false;
                 if (largoHecho) return true;
                 if (pulso >= 0 && !arrastre && sel < visibles.size()) {
                     pulso = -1;
@@ -1276,6 +1392,7 @@ final class LauncherView extends View {
             case MotionEvent.ACTION_CANCEL:
                 ui.removeCallbacks(largoItem); ui.removeCallbacks(largoVacio);
                 pulso = -1;
+                desliza = false; tiraToque = false;
                 if (olaActiva) olaSuelta();
                 if (levantada >= 0) { levantada = -1; pinta(modo, false); }
                 return true;
@@ -1417,6 +1534,7 @@ final class LauncherView extends View {
             } else {
                 char l = letras.charAt(mejor);
                 if (l == FAVS_LETRA) { if (!FAV.equals(modo)) pinta(FAV, true); }
+                else if (enLetras()) { modo = String.valueOf(l); irALetra(l, true); }   // misma tira: solo se desliza
                 else pinta(String.valueOf(l), true);   // solo hay letras con apps
             }
         }
