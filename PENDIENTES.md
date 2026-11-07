@@ -6,6 +6,11 @@
 3. **Inglés:** textos según el idioma del teléfono (hoy solo español).
 
 ## Hecho
+- v0.11: ⚙ bajo la columna para Opciones (adiós al texto de ayuda de abajo); deslizar ↓ busca desde
+  cualquier parte (en la lista completa, jalando estando hasta arriba); deslizar ↑ muestra las más
+  usadas (se cuentan las aperturas desde el launcher, sin permisos extra). Menos trabajo al cambiar
+  de wallpaper: los avisos de paquetes se juntan en una sola recarga y los íconos ya dibujados se
+  reutilizan.
 - v0.10: skin **Sakura** (rosa) y skin **Tu fondo**, que usa la paleta de Material You que Android
   saca del wallpaper (sirve también con fondos animados). Se recalcula al volver al inicio.
 - v0.9: la ola ya no encasilla en una letra. Lleva a donde empieza esa letra dentro de una sola

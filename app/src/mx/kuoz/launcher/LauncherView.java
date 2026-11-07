@@ -62,7 +62,7 @@ final class LauncherView extends View {
 
     static final String CARPETA = "carpeta:";   // prefijo del modo que muestra una carpeta
 
-    static final String FAV = "fav", BUSCA = "busca";
+    static final String FAV = "fav", BUSCA = "busca", USADAS = "usadas";
     // Como Niagara: solo las letras que tienen apps, ★ arriba = favoritas, # al final.
     // Se recalcula en setApps(). Máximo ★ + 26 + # = 28.
     private static final char FAVS_LETRA = '★';
@@ -88,6 +88,7 @@ final class LauncherView extends View {
     // Datos
     private List<AppEntry> todas = new ArrayList<>();
     private List<AppEntry> favs = new ArrayList<>();
+    private List<AppEntry> usadas = new ArrayList<>();
     private final Set<String> clavesFav = new HashSet<>();
     private final List<AppEntry> visibles = new ArrayList<>();
     private String modo = FAV;
@@ -96,6 +97,7 @@ final class LauncherView extends View {
     // Letras: una sola tira con todas las apps; la letra solo la desplaza (v0.9)
     private float scroll, scrollVel, scrollMeta = Float.NaN, scroll0;
     private boolean desliza;
+    private boolean engranajeToque;   // el dedo bajó sobre el ⚙ de debajo de la ola
     private char letraVista;
     private android.view.VelocityTracker vt;
 
@@ -268,6 +270,7 @@ final class LauncherView extends View {
     /** Rehace la lista visible sin reiniciar resortes: el reacomodo se ve en vez de saltar. */
     private void refresca() {
         if (FAV.equals(modo)) { visibles.clear(); visibles.addAll(favs); }
+        else if (USADAS.equals(modo)) { visibles.clear(); visibles.addAll(usadas); }
         else if (modo.startsWith(CARPETA)) {
             Carpeta c = carpeta(modo.substring(CARPETA.length()));
             visibles.clear();
@@ -276,6 +279,12 @@ final class LauncherView extends View {
         else if (enLetras()) { visibles.clear(); visibles.addAll(todas); scroll = Math.min(scroll, scrollMax()); }
         sel = Math.min(sel, Math.max(0, visibles.size() - 1));
         invalidate();
+    }
+
+    /** Las más abiertas desde el launcher (deslizar ↑ en inicio). */
+    void setUsadas(List<AppEntry> l) {
+        usadas = l;
+        if (USADAS.equals(modo)) refresca();
     }
 
     void setFavs(List<AppEntry> favs) {
@@ -343,7 +352,7 @@ final class LauncherView extends View {
     AppEntry primero() { return visibles.isEmpty() ? null : visibles.get(0); }
 
     /** Modo letra: la lista es la tira completa y se desplaza. */
-    private boolean enLetras() { return !FAV.equals(modo) && !BUSCA.equals(modo) && !modo.startsWith(CARPETA); }
+    private boolean enLetras() { return !FAV.equals(modo) && !BUSCA.equals(modo) && !USADAS.equals(modo) && !modo.startsWith(CARPETA); }
 
     private float desp() { return enLetras() ? scroll : 0; }
 
@@ -415,6 +424,7 @@ final class LauncherView extends View {
         menuApp = null;
         visibles.clear();
         if (FAV.equals(nuevo)) visibles.addAll(favs);
+        else if (USADAS.equals(nuevo)) visibles.addAll(usadas);
         else if (nuevo.startsWith(CARPETA)) {
             Carpeta c = carpeta(nuevo.substring(CARPETA.length()));
             if (c != null) visibles.addAll(appsDe(c));
@@ -423,7 +433,7 @@ final class LauncherView extends View {
         duracionEntrada = 550f;
         scrollVel = 0; scrollMeta = Float.NaN;
         if (!enLetras()) scroll = 0;
-        if (FAV.equals(nuevo)) letraFondo.objetivo = 0;
+        if (FAV.equals(nuevo) || USADAS.equals(nuevo)) letraFondo.objetivo = 0;
         else if (!BUSCA.equals(nuevo)) { letraFondo.pos = .6f; letraFondo.objetivo = 1; }
         if (conEntrada) reiniciaEntrada();
         else { sel = Math.min(sel, Math.max(0, visibles.size() - 1)); invalidate(); }
@@ -494,7 +504,7 @@ final class LauncherView extends View {
             if (l != letraVista) { letraVista = l; letraFondo.pos = .7f; letraFondo.objetivo = 1; }
         }
         mueve |= letraFondo.paso(dt, .002f);
-        if (!FAV.equals(modo) && !BUSCA.equals(modo) && letraFondo.pos > .01f) {
+        if (!FAV.equals(modo) && !BUSCA.equals(modo) && !USADAS.equals(modo) && letraFondo.pos > .01f) {
             c.save();
             c.translate(w - 40 * d, listaArriba - 30 * d);
             c.rotate(-10);
@@ -524,14 +534,13 @@ final class LauncherView extends View {
         c.save();
         c.translate(14 * d, listaArriba - 8 * d);
         c.rotate(-4);
-        String titulo = FAV.equals(modo) ? "FAVORITAS" : BUSCA.equals(modo) ? visibles.size() + " RESULTADOS"
+        String titulo = FAV.equals(modo) ? "FAVORITAS" : USADAS.equals(modo) ? "MÁS USADAS" : BUSCA.equals(modo) ? visibles.size() + " RESULTADOS"
                 : modo.startsWith(CARPETA) ? "CARPETA · " + visibles.size() + " APPS" : visibles.size() + " APPS";
         c.drawText(titulo, 0, 0, t);
         c.restore();
 
         mueve |= lista(c, ahora, dt);
         mueve |= ola(c, w, h, dt);
-        if (!BUSCA.equals(modo)) pie(c, h);
         mueve |= avisoDibuja(c, w, h, ahora, dt);
         if (opciones) mueve |= opcionesDibuja(c, w, h, ahora);
         mueve |= corteDibuja(c, w, h, ahora);
@@ -682,6 +691,11 @@ final class LauncherView extends View {
                 t.setTextAlign(Paint.Align.LEFT); t.setTextSize(14 * d); t.setLetterSpacing(.2f);
                 t.setColor(skin.hielo); t.setAlpha(150);
                 c.drawText("MANTÉN UNA APP PARA FIJARLA", 20 * d, listaArriba + 40 * d, t);
+                t.setAlpha(255);
+            } else if (USADAS.equals(modo)) {
+                t.setTextAlign(Paint.Align.LEFT); t.setTextSize(14 * d); t.setLetterSpacing(.2f);
+                t.setColor(skin.hielo); t.setAlpha(150);
+                c.drawText("AÚN NO HAS ABIERTO APPS DESDE AQUÍ", 20 * d, listaArriba + 40 * d, t);
                 t.setAlpha(255);
             }
             return false;
@@ -985,7 +999,8 @@ final class LauncherView extends View {
 
     private float olaArriba() {
         float centro = getHeight() * .56f;
-        return Math.max(insetArriba + 170 * d, centro - altoOla() / 2);
+        // Se centra contando el ⚙ de abajo, para que no caiga encima de la última carpeta
+        return Math.max(insetArriba + 170 * d, centro - (altoOla() + 44 * d) / 2);
     }
 
     private float olaAbajo() { return olaArriba() + altoOla(); }
@@ -1042,6 +1057,8 @@ final class LauncherView extends View {
             c.restore();
         }
 
+        if (!BUSCA.equals(modo)) engranaje(c, w - 20 * d, engranajeY(), 9 * d);
+
         mueve |= burbuja.paso(dt, .002f);
         if (burbuja.pos > .02f && letraAct >= 0) {
             float lado = 96 * d, e = burbuja.pos;
@@ -1061,15 +1078,39 @@ final class LauncherView extends View {
         return mueve;
     }
 
-    private void pie(Canvas c, int h) {
-        // El cambio de skin vive en "mantener la hora"; aquí solo una pista discreta
-        t.setTextAlign(Paint.Align.LEFT);
-        t.setTextSize(10 * d);
-        t.setLetterSpacing(.22f);
-        t.setColor(skin.hielo);
-        t.setAlpha(110);
-        c.drawText("↓ BUSCAR  ·  MANTÉN VACÍO · OPCIONES", 20 * d, h - insetAbajo - 22 * d, t);
-        t.setAlpha(255);
+    /** Debajo de la ola (y de sus carpetas), sin salirse por abajo de la pantalla. */
+    private float engranajeY() { return Math.min(olaAbajo() + 44 * d, getHeight() - insetAbajo - 28 * d); }
+
+    private Path engranajePath;   // centrado en (0,0); se arma una vez, no en cada cuadro
+
+    /** ⚙ dibujado a mano (el carácter cambia de fuente/emoji según el teléfono): abre Opciones. */
+    private void engranaje(Canvas c, float cx, float cy, float r) {
+        if (engranajePath == null) {
+            Path dientes = new Path();
+            for (int k = 0; k < 8; k++) {
+                double a = Math.toRadians(k * 45 + 10);
+                float dx = (float) Math.cos(a), dy = (float) Math.sin(a);
+                float x1 = dx * r * .75f, y1 = dy * r * .75f, x2 = dx * r * 1.35f, y2 = dy * r * 1.35f;
+                float ex = -dy * r * .26f, ey = dx * r * .26f;
+                dientes.moveTo(x1 + ex, y1 + ey); dientes.lineTo(x2 + ex, y2 + ey);
+                dientes.lineTo(x2 - ex, y2 - ey); dientes.lineTo(x1 - ex, y1 - ey); dientes.close();
+            }
+            // Cada figura en su propio Path: en uno solo los traslapes se anulan entre sí
+            Path g = new Path();
+            g.addCircle(0, 0, r, Path.Direction.CW);
+            g.op(dientes, Path.Op.UNION);
+            Path hoyo = new Path();
+            hoyo.addCircle(0, 0, r * .42f, Path.Direction.CW);
+            g.op(hoyo, Path.Op.DIFFERENCE);
+            engranajePath = g;
+        }
+        p.setStyle(Paint.Style.FILL);
+        c.save();
+        c.translate(cx + 2 * d, cy + 2 * d); p.setColor(Color.BLACK); p.setAlpha(150); c.drawPath(engranajePath, p);
+        c.translate(-2 * d, -2 * d); p.setColor(engranajeToque ? skin.fuerte : skin.blanco); p.setAlpha(230);
+        c.drawPath(engranajePath, p);
+        c.restore();
+        p.setAlpha(255);
     }
 
     private boolean avisoDibuja(Canvas c, int w, int h, long ahora, float dt) {
@@ -1309,6 +1350,11 @@ final class LauncherView extends View {
                 }
                 if (tCal >= 0) { tCal = Math.min(tCal, SystemClock.uptimeMillis() - 2400); return true; }
                 if (corte != NADA) return true;
+                if (!BUSCA.equals(modo) && x > getWidth() - 56 * d && Math.abs(y - engranajeY()) < 24 * d) {
+                    engranajeToque = true;
+                    invalidate();
+                    return true;
+                }
                 if (x > getWidth() - 72 * d && y > olaArriba() - 24 * d && y < olaAbajo() + 24 * d) {
                     olaActiva = true;
                     getParent().requestDisallowInterceptTouchEvent(true);
@@ -1328,6 +1374,7 @@ final class LauncherView extends View {
                 return true;
 
             case MotionEvent.ACTION_MOVE:
+                if (engranajeToque) return true;
                 if (olaActiva) { olaMueve(y); return true; }
                 if (levantada >= 0) { mueveLevantada(y); return true; }
                 if (Math.abs(y - y0) > 12 * d || Math.abs(x - x0) > 12 * d) {
@@ -1354,8 +1401,23 @@ final class LauncherView extends View {
 
             case MotionEvent.ACTION_UP:
                 ui.removeCallbacks(largoItem); ui.removeCallbacks(largoVacio);
+                if (engranajeToque) {
+                    engranajeToque = false;
+                    if (x > getWidth() - 72 * d && Math.abs(y - engranajeY()) < 40 * d) {
+                        performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                        abrirOpciones();
+                    }
+                    invalidate();
+                    return true;
+                }
                 if (olaActiva) { olaSuelta(); return true; }
                 if (levantada >= 0) { sueltaLevantada(); return true; }
+                if (desliza && scroll0 <= 0 && y - y0 > 70 * d) {
+                    // Ya estaba hasta arriba y se siguió jalando ↓: buscar, como en inicio
+                    desliza = false; tiraToque = false; pulso = -1;
+                    oyente.abrirBusqueda();
+                    return true;
+                }
                 if (desliza) {
                     // Se suelta con impulso: la tira sigue de largo y frena sola
                     vt.addMovement(e);
@@ -1383,8 +1445,10 @@ final class LauncherView extends View {
                 if (wallpaper && !arrastre && !desdeFila) tocaWallpaper(x, y);
                 if (BUSCA.equals(modo)) {
                     if (!arrastre) oyente.cerrarBusqueda();
-                } else if (y - y0 > 70 * d && Math.abs(y - y0) > Math.abs(x - x0) && !(desdeFila && cambio)) {
-                    oyente.abrirBusqueda();
+                } else if (y - y0 > 70 * d && Math.abs(y - y0) > Math.abs(x - x0)) {
+                    oyente.abrirBusqueda();   // ↓ desde cualquier parte (también sobre una app)
+                } else if (y0 - y > 70 * d && Math.abs(y - y0) > Math.abs(x - x0)) {
+                    if (!USADAS.equals(modo)) pinta(USADAS, true);   // ↑ = las más usadas
                 } else if (!FAV.equals(modo) && !arrastre) {
                     pinta(FAV, true);
                 }
@@ -1393,7 +1457,7 @@ final class LauncherView extends View {
             case MotionEvent.ACTION_CANCEL:
                 ui.removeCallbacks(largoItem); ui.removeCallbacks(largoVacio);
                 pulso = -1;
-                desliza = false; tiraToque = false;
+                desliza = false; tiraToque = false; engranajeToque = false;
                 if (olaActiva) olaSuelta();
                 if (levantada >= 0) { levantada = -1; pinta(modo, false); }
                 return true;

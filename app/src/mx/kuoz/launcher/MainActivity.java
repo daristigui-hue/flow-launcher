@@ -83,11 +83,11 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     private static final class CambiosDeApps extends LauncherApps.Callback {
         private final MainActivity a;
         CambiosDeApps(MainActivity a) { this.a = a; }
-        @Override public void onPackageRemoved(String p, UserHandle u) { a.cargarApps(); }
-        @Override public void onPackageAdded(String p, UserHandle u) { a.cargarApps(); }
-        @Override public void onPackageChanged(String p, UserHandle u) { a.cargarApps(); }
-        @Override public void onPackagesAvailable(String[] p, UserHandle u, boolean r) { a.cargarApps(); }
-        @Override public void onPackagesUnavailable(String[] p, UserHandle u, boolean r) { a.cargarApps(); }
+        @Override public void onPackageRemoved(String p, UserHandle u) { a.cambioPaquete(p); }
+        @Override public void onPackageAdded(String p, UserHandle u) { a.cambioPaquete(p); }
+        @Override public void onPackageChanged(String p, UserHandle u) { a.cambioPaquete(p); }
+        @Override public void onPackagesAvailable(String[] p, UserHandle u, boolean r) { for (String x : p) a.cambioPaquete(x); }
+        @Override public void onPackagesUnavailable(String[] p, UserHandle u, boolean r) { for (String x : p) a.cambioPaquete(x); }
     }
 
     private static final class AlEscribir implements TextWatcher {
@@ -101,6 +101,19 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     }
 
     private final CambiosDeApps cambiosDeApps = new CambiosDeApps(this);
+
+    /** Íconos ya dibujados, por clave. Estático: sobrevive a que Android recree la actividad
+     *  (pasa al cambiar de wallpaper/colores) y así no se vuelven a dibujar todos. */
+    private static final java.util.Map<String, Bitmap> ICONOS = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Runnable recarga = () -> cargarApps();
+
+    /** Android avisa paquete por paquete y en ráfagas (un cambio de tema manda varios avisos
+     *  seguidos; Play Store también). Se tira solo el ícono de ese paquete y se recarga una vez. */
+    void cambioPaquete(String pkg) {
+        for (String k : ICONOS.keySet()) if (k.startsWith(pkg + "/")) ICONOS.remove(k);
+        ui.removeCallbacks(recarga);
+        ui.postDelayed(recarga, 500);
+    }
 
     @Override
     protected void onCreate(Bundle guardado) {
@@ -179,6 +192,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     @Override
     protected void onDestroy() {
         launcherApps.unregisterCallback(cambiosDeApps);
+        ui.removeCallbacks(recarga);
         fondo.shutdownNow();
         super.onDestroy();
     }
@@ -189,8 +203,9 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         vista.alVolver();
         vista.setWallpaperActual(wallpaperActual());
         // Con «Tu fondo», si cambió el wallpaper mientras estaba fuera, tomar la paleta nueva
-        if (Skin.FONDO.equals(skin.id)) {
-            skin = Skin.delFondo(this);
+        Skin nueva = Skin.FONDO.equals(skin.id) ? Skin.delFondo(this) : null;
+        if (nueva != null && !nueva.igual(skin)) {   // repintar solo si el wallpaper sí cambió los colores
+            skin = nueva;
             vista.setSkin(skin);
             estiloBusca();
         }
@@ -248,6 +263,8 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
             int n = 0;
             for (AppEntry a : lista) {
                 if (a.info == null || a.icono != null) continue;
+                Bitmap guardado = ICONOS.get(a.clave);
+                if (guardado != null && guardado.getWidth() == lado) { a.icono = guardado; continue; }
                 try {
                     Drawable dr = a.info.getBadgedIcon(dens);
                     Bitmap b = Bitmap.createBitmap(lado, lado, Bitmap.Config.ARGB_8888);
@@ -255,6 +272,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
                     dr.setBounds(0, 0, lado, lado);
                     dr.draw(c);
                     a.icono = b;
+                    ICONOS.put(a.clave, b);
                 } catch (Exception ignorado) { }
                 if (++n % 8 == 0) vista.postInvalidate();
             }
@@ -269,6 +287,41 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         for (AppEntry a : todas) (ocultas.contains(a.clave) ? escondidas : mostradas).add(a);
         vista.setOcultas(escondidas);
         vista.setApps(mostradas, favoritas());
+        vista.setUsadas(masUsadas());
+    }
+
+    // ───────────────────────── Más usadas ─────────────────────────
+    // Se cuentan las aperturas desde el launcher (sin pedir el permiso de estadísticas de uso).
+
+    private static final int MAX_USADAS = 8;
+
+    private java.util.Map<String, Integer> usos() {
+        java.util.Map<String, Integer> m = new java.util.HashMap<>();
+        for (String r : prefs.getString("usos", "").split("\n")) {
+            int t = r.lastIndexOf('\t');
+            if (t <= 0) continue;
+            try { m.put(r.substring(0, t), Integer.parseInt(r.substring(t + 1))); } catch (NumberFormatException ignorado) { }
+        }
+        return m;
+    }
+
+    private void cuentaUso(AppEntry a) {
+        if (a.carpetaId != null) return;
+        java.util.Map<String, Integer> m = usos();
+        Integer n = m.get(a.clave);
+        m.put(a.clave, n == null ? 1 : n + 1);
+        StringBuilder sb = new StringBuilder();
+        for (java.util.Map.Entry<String, Integer> e : m.entrySet()) sb.append(e.getKey()).append('\t').append(e.getValue()).append('\n');
+        prefs.edit().putString("usos", sb.toString()).apply();
+        vista.setUsadas(masUsadas());
+    }
+
+    private List<AppEntry> masUsadas() {
+        final java.util.Map<String, Integer> m = usos();
+        List<AppEntry> l = new ArrayList<>();
+        for (AppEntry a : mostradas) if (m.containsKey(a.clave)) l.add(a);
+        Collections.sort(l, (x, y) -> Integer.compare(m.get(y.clave), m.get(x.clave)));
+        return l.size() > MAX_USADAS ? new ArrayList<>(l.subList(0, MAX_USADAS)) : l;
     }
 
     @Override
@@ -330,6 +383,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     @Override
     public void abrir(final AppEntry a) {
         if (busca.getVisibility() == View.VISIBLE) ocultaBusca();
+        cuentaUso(a);
         vista.corte(a.mayus, () -> lanzar(a));
     }
 

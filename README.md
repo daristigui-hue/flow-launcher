@@ -16,7 +16,8 @@ bloques ladeados y cinco skins.
 - **5 skins**: Carmesí, Medianoche, Dorado, Sakura y «Tu fondo» (toma los colores del
   wallpaper, Android 12+); fondo animado o el wallpaper del teléfono
   (incluido Wallpaper Engine), íconos sí/no.
-- Toca la hora para abrir el calendario. Mantén la hora o un espacio vacío para ver las *Opciones*.
+- Toca la hora para abrir el calendario. El ⚙ bajo la columna abre las *Opciones*.
+- Desliza ↓ en cualquier parte para buscar; ↑ para ver tus apps más usadas.
 - Sin internet, sin anuncios, sin permisos raros. Pesa ~55 KB.
 
 ## Instalar
@@ -56,6 +57,7 @@ any app is one thumb swipe away. Springy animations, tilted blocks and five skin
 - **Alphabet column**: slide your thumb to a letter, tap an app to open it (swiping never opens anything).
 - **Folders**, in the column or on the home screen.
 - **Hide apps**: long-press › *OCULTAR APP*; bring them back in *Opciones › APPS OCULTAS*.
+- Swipe ↓ anywhere to search, ↑ for your most used apps. The ⚙ under the column opens settings.
 - **5 skins** (one takes its colors from your wallpaper, Android 12+), animated background or your system wallpaper (Wallpaper Engine works), icons on/off.
 - No internet permission, no ads. ~55 KB. Android 11+. UI is in Spanish.
 

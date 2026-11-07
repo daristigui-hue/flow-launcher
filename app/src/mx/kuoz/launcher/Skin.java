@@ -56,6 +56,11 @@ final class Skin {
                 .12f, 1);
     }
 
+    boolean igual(Skin o) {
+        return abismo == o.abismo && marino == o.marino && azul == o.azul && cian == o.cian && hielo == o.hielo
+                && blanco == o.blanco && rojo == o.rojo && fuerte == o.fuerte;
+    }
+
     /** Orden del ciclo: las fijas y al final Tu fondo (si el teléfono lo soporta). */
     Skin siguiente(Context c) {
         for (int i = 0; i < TODAS.length; i++) {
