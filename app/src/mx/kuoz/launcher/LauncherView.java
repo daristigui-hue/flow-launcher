@@ -59,6 +59,7 @@ final class LauncherView extends View {
         void ocultar(AppEntry a);                   // fuera de la ola, búsqueda y favoritas
         void mostrar(String clave);
         void alternarFranja();
+        void alternarSoltar();
     }
 
     static final String CARPETA = "carpeta:";   // prefijo del modo que muestra una carpeta
@@ -152,6 +153,10 @@ final class LauncherView extends View {
     // Toque
     private float x0, y0;
     private int pulso = -1;
+    // Opción «abrir al soltar»: el dedo baja en un nombre, el cursor lo sigue y al levantar se abre
+    private boolean abrirAlSoltar, eligiendo;
+    private int eligeOrigen = -1, autoScroll;   // autoScroll: -1 sube, 1 baja (dedo en la orilla de la tira)
+    private float eligeX, eligeY;
     private boolean arrastre, cambio, largoHecho, tiraToque;
 
     // Favorita "levantada" para reordenar (mantener + arrastrar)
@@ -174,7 +179,7 @@ final class LauncherView extends View {
     private boolean opciones, iconos = true, wallpaper;
     private long tOpc;
     private String opcSkin = "", opcVersion = "";
-    private final RectF[] opcRect = new RectF[8];
+    private final RectF[] opcRect = new RectF[9];
     private static final int MAX_OCULTAS = 6;   // + fila de regresar = 7 ≤ opcRect
     private int opcPagina;            // 0 principal · 1 carpetas · 2 una carpeta
     private String opcCarpeta;
@@ -311,6 +316,8 @@ final class LauncherView extends View {
     private boolean franjaCompleta = true;
 
     void setFranjaCompleta(boolean si) { franjaCompleta = si; invalidate(); }
+
+    void setAbrirAlSoltar(boolean si) { abrirAlSoltar = si; invalidate(); }
 
     boolean franjaCompleta() { return franjaCompleta; }
 
@@ -786,6 +793,13 @@ final class LauncherView extends View {
     /** Inercia del deslizamiento y viaje suave a una letra. true mientras se mueva. */
     private boolean pasoScroll(float dt) {
         if (desliza) return false;   // el dedo manda
+        if (eligiendo && autoScroll != 0) {
+            // Eligiendo con el dedo en la orilla: la tira avanza sola y el cursor sigue al dedo
+            scroll = Math.max(0, Math.min(scrollMax(), scroll + autoScroll * 520 * d * Math.min(dt, 1f / 30f)));
+            int j = filaEn(Math.min(eligeX, getWidth() - 80 * d), eligeY);
+            if (j >= 0 && j != sel) { sel = j; cambio = true; performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK); }
+            return true;
+        }
         float max = scrollMax();
         if (!Float.isNaN(scrollMeta)) {
             scroll += (scrollMeta - scroll) * Math.min(1, dt * 16);
@@ -1369,6 +1383,8 @@ final class LauncherView extends View {
                     if (vt == null) vt = android.view.VelocityTracker.obtain(); else vt.clear();
                     vt.addMovement(e);
                     if (corria) { largoHecho = true; return true; }
+                    // Abrir al soltar: sobre un nombre el dedo elige en vez de desplazar
+                    if (abrirAlSoltar && filaEn(x, y) >= 0) tiraToque = false;
                 }
                 if (tCal >= 0) { tCal = Math.min(tCal, SystemClock.uptimeMillis() - 2400); return true; }
                 if (corte != NADA) return true;
@@ -1384,8 +1400,10 @@ final class LauncherView extends View {
                     return true;
                 }
                 int i = filaEn(x, y);
+                eligiendo = false; autoScroll = 0;
                 if (i >= 0) {
                     pulso = i;
+                    if (abrirAlSoltar) { eligiendo = true; eligeOrigen = i; eligeX = x; eligeY = y; }
                     if (sel != i) { sel = i; performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); }
                     ui.postDelayed(largoItem, 550);
                 } else if (!BUSCA.equals(modo)) {
@@ -1410,8 +1428,13 @@ final class LauncherView extends View {
                     if (desliza) { scroll = Math.max(0, Math.min(scrollMax(), scroll0 - (y - y0))); invalidate(); }
                     return true;
                 }
+                if (eligiendo && enLetras()) {
+                    eligeX = x; eligeY = y;
+                    int nuevo = y < listaArriba + filaAlto * .6f ? -1 : y > listaAbajo() - filaAlto * .6f ? 1 : 0;
+                    if (nuevo != autoScroll) { autoScroll = nuevo; invalidate(); }
+                }
                 if (pulso >= 0) {
-                    // Pasar el dedo solo mueve el cursor; abrir es únicamente con toque
+                    // Pasar el dedo mueve el cursor; abre solo con toque, o al soltar si la opción está
                     int j = filaEn(Math.min(x, getWidth() - 80 * d), y);
                     if (j >= 0 && j != sel) {
                         sel = j; cambio = true;
@@ -1450,7 +1473,23 @@ final class LauncherView extends View {
                     return true;
                 }
                 tiraToque = false;
-                if (largoHecho) return true;
+                autoScroll = 0;
+                if (largoHecho) { eligiendo = false; return true; }
+                if (eligiendo && arrastre) {
+                    // Abrir al soltar: la app bajo el dedo. Fuera de la lista o de vuelta en la de
+                    // salida = arrepentirse, no abre nada
+                    eligiendo = false; pulso = -1;
+                    int j = filaEn(Math.min(x, getWidth() - 80 * d), y);
+                    if (j >= 0 && j != eligeOrigen && j < visibles.size()) {
+                        AppEntry a = visibles.get(j);
+                        sel = j;
+                        if (a.carpetaId != null) pinta(CARPETA + a.carpetaId, true);
+                        else oyente.abrir(a);
+                    }
+                    invalidate();
+                    return true;
+                }
+                eligiendo = false;
                 if (pulso >= 0 && !arrastre && sel < visibles.size()) {
                     pulso = -1;
                     AppEntry a = visibles.get(sel);
@@ -1479,7 +1518,7 @@ final class LauncherView extends View {
             case MotionEvent.ACTION_CANCEL:
                 ui.removeCallbacks(largoItem); ui.removeCallbacks(largoVacio);
                 pulso = -1;
-                desliza = false; tiraToque = false; engranajeToque = false;
+                desliza = false; tiraToque = false; engranajeToque = false; eligiendo = false; autoScroll = 0;
                 if (olaActiva) olaSuelta();
                 if (levantada >= 0) { levantada = -1; pinta(modo, false); }
                 return true;
@@ -1509,6 +1548,7 @@ final class LauncherView extends View {
             l.add(new String[]{"APPS OCULTAS", ocultas.size() + " · ADMINISTRAR ›"});
             l.add(new String[]{"PANTALLA DE INICIO", "ELEGIR LAUNCHER ›"});
             l.add(new String[]{"AL ABRIR UNA APP", franjaCompleta ? "FRANJA COMPLETA" : "AL INSTANTE"});
+            l.add(new String[]{"ABRIR AL SOLTAR", abrirAlSoltar ? "SÍ · DESLIZA Y SUELTA" : "NO · SOLO CON TOQUE"});
         } else if (opcPagina == 3) {
             for (int i = 0; i < ocultas.size() && i < MAX_OCULTAS; i++)
                 l.add(new String[]{"OCULTA · TOCA PARA MOSTRAR", ocultas.get(i).mayus});
@@ -1548,6 +1588,7 @@ final class LauncherView extends View {
             else if (i == 5) opcPagina = 3;
             else if (i == 6) { opciones = false; oyente.ajustesInicio(); }
             else if (i == 7) oyente.alternarFranja();
+            else if (i == 8) oyente.alternarSoltar();
         } else if (opcPagina == 3) {
             int n = Math.min(ocultas.size(), MAX_OCULTAS);
             if (i < n) oyente.mostrar(ocultas.get(i).clave);   // la página se queda: sale la siguiente

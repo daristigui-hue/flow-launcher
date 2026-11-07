@@ -18,6 +18,7 @@ bloques ladeados y cinco skins.
   (incluido Wallpaper Engine), íconos sí/no.
 - Toca la hora para abrir el calendario. El ⚙ bajo la columna abre las *Opciones*.
 - Desliza ↓ en cualquier parte para buscar; ↑ para ver tus apps más usadas.
+- Opcional: *abrir al soltar* — desliza el dedo por la lista y suelta sobre la app.
 - Sin internet, sin anuncios, sin permisos raros. Pesa ~55 KB.
 
 ## Instalar

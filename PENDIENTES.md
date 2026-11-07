@@ -6,6 +6,9 @@
 3. **Inglés:** textos según el idioma del teléfono (hoy solo español).
 
 ## Hecho
+- v0.14: Opciones › ABRIR AL SOLTAR (apagada por defecto): el dedo baja en un nombre, el cursor lo
+  sigue y al levantar se abre esa app. En la lista completa, arrastrar sobre los nombres elige en vez
+  de desplazar; con el dedo en la orilla la lista avanza sola. Soltar fuera o en la app de salida no abre.
 - v0.13: Opciones › AL ABRIR UNA APP: «franja completa» (el efecto entero; la app se pide cuando la
   franja cubre la pantalla, como hasta v0.11) o «al instante» (se pide ya y la franja corre encima).
 - v0.12: tocar una app la pide al instante (antes esperaba 0.4 s a que terminara la franja). Opciones

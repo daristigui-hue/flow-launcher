@@ -130,6 +130,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         vista = new LauncherView(this, skin, this);
         vista.setIconos(prefs.getBoolean("iconos", true));
         vista.setFranjaCompleta(prefs.getBoolean("franja", true));
+        vista.setAbrirAlSoltar(prefs.getBoolean("soltar", false));
         aplicarFondo();
         vista.setOpciones(skin.nombre, version());
         raiz.addView(vista, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -466,6 +467,13 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         boolean si = !prefs.getBoolean("franja", true);
         prefs.edit().putBoolean("franja", si).apply();
         vista.setFranjaCompleta(si);
+    }
+
+    @Override
+    public void alternarSoltar() {
+        boolean si = !prefs.getBoolean("soltar", false);
+        prefs.edit().putBoolean("soltar", si).apply();
+        vista.setAbrirAlSoltar(si);
     }
 
     @Override
