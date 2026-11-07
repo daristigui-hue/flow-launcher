@@ -107,6 +107,9 @@ final class LauncherView extends View {
 
     // Animación
     private long ultimoFrame;
+    // Consumo para Opciones: cuadros dibujados por segundo (el último segundo completo) y RAM
+    private long tSegundo;
+    private int cuadros, cuadrosPorSeg, cuadrosAntes, ramMb;
     private long tEntrada;
     private float duracionEntrada = 550f;
     private final OvershootInterpolator entra = new OvershootInterpolator(1.3f);
@@ -312,6 +315,10 @@ final class LauncherView extends View {
     void setOpciones(String skinNombre, String version) { opcSkin = skinNombre; opcVersion = version; invalidate(); }
 
     void abrirOpciones() {
+        // Foto del consumo justo antes de abrir: el ritmo de redibujo en reposo y la RAM real
+        // (PSS, lo mismo que mide Ajustes › Memoria)
+        cuadrosAntes = cuadrosPorSeg;
+        ramMb = (int) (android.os.Debug.getPss() / 1024);
         opciones = true;
         opcPagina = 0;
         opcConfirmaBorrar = false;
@@ -383,7 +390,7 @@ final class LauncherView extends View {
     void corte(String nombre, Runnable luego) {
         corteNombre = nombre;
         alCubrir = luego;
-        if (!animaciones) { corte = CUBIERTO; luego.run(); return; }
+        if (!animaciones) { corte = CUBIERTO; if (luego != null) luego.run(); return; }
         corte = VA;
         tCorte = SystemClock.uptimeMillis();
         performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
@@ -487,6 +494,8 @@ final class LauncherView extends View {
     @Override
     protected void onDraw(Canvas c) {
         long ahora = SystemClock.uptimeMillis();
+        cuadros++;
+        if (ahora - tSegundo >= 1000) { cuadrosPorSeg = ahora - tSegundo < 2000 ? cuadros : 0; cuadros = 0; tSegundo = ahora; }
         float dt = ultimoFrame == 0 ? 0.016f : (ahora - ultimoFrame) / 1000f;
         ultimoFrame = ahora;
         boolean mueve = false;
@@ -1184,6 +1193,7 @@ final class LauncherView extends View {
             y += alto + 14 * d;
         }
         t.setColor(skin.hielo); t.setAlpha(140); t.setTextSize(11 * d); t.setLetterSpacing(.25f);
+        c.drawText("RAM " + ramMb + " MB  ·  EN REPOSO " + cuadrosAntes + " CUADROS/S", 22 * d, h - insetAbajo - 44 * d, t);
         c.drawText("VERSIÓN " + opcVersion + "  ·  TOCA FUERA PARA CERRAR", 22 * d, h - insetAbajo - 26 * d, t);
         t.setAlpha(255);
         return mueve;
@@ -1613,6 +1623,9 @@ final class LauncherView extends View {
         ui.postDelayed(() -> { if (!olaActiva) { letraAct = -1; invalidate(); } }, 300);
         invalidate();
     }
+
+    /** Android pide memoria: se tira lo que se puede rehacer al vuelo (la trama de puntos ~4 MB). */
+    void soltarMemoria() { puntos = null; rayos = null; engranajePath = null; }
 
     @Override
     protected void onSizeChanged(int w, int h, int ow, int oh) {

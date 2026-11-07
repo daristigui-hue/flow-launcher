@@ -6,6 +6,11 @@
 3. **Inglés:** textos según el idioma del teléfono (hoy solo español).
 
 ## Hecho
+- v0.12: tocar una app la pide al instante (antes esperaba 0.4 s a que terminara la franja). Opciones
+  muestra la RAM que usa el launcher y cuántas veces se redibuja por segundo en reposo. Suelta la trama
+  del fondo cuando Android pide memoria; con íconos apagados ya no se cargan. «Tu fondo» pasa a llamarse
+  «Color del sistema»: sigue la paleta de Android, y con wallpapers animados que no reportan colores
+  (Wallpaper Engine) Android no la cambia.
 - v0.11: ⚙ bajo la columna para Opciones (adiós al texto de ayuda de abajo); deslizar ↓ busca desde
   cualquier parte (en la lista completa, jalando estando hasta arriba); deslizar ↑ muestra las más
   usadas (se cuentan las aperturas desde el launcher, sin permisos extra). Menos trabajo al cambiar

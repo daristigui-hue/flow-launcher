@@ -13,8 +13,8 @@ bloques ladeados y cinco skins.
 - **Carpetas**, dentro de la columna o en el inicio.
 - **Ocultar apps** que no usas: mantén la app › *OCULTAR APP*. Se recuperan en
   *Opciones › APPS OCULTAS*.
-- **5 skins**: Carmesí, Medianoche, Dorado, Sakura y «Tu fondo» (toma los colores del
-  wallpaper, Android 12+); fondo animado o el wallpaper del teléfono
+- **5 skins**: Carmesí, Medianoche, Dorado, Sakura y «Color del sistema» (la paleta
+  Material You del teléfono, Android 12+); fondo animado o el wallpaper del teléfono
   (incluido Wallpaper Engine), íconos sí/no.
 - Toca la hora para abrir el calendario. El ⚙ bajo la columna abre las *Opciones*.
 - Desliza ↓ en cualquier parte para buscar; ↑ para ver tus apps más usadas.
@@ -58,7 +58,7 @@ any app is one thumb swipe away. Springy animations, tilted blocks and five skin
 - **Folders**, in the column or on the home screen.
 - **Hide apps**: long-press › *OCULTAR APP*; bring them back in *Opciones › APPS OCULTAS*.
 - Swipe ↓ anywhere to search, ↑ for your most used apps. The ⚙ under the column opens settings.
-- **5 skins** (one takes its colors from your wallpaper, Android 12+), animated background or your system wallpaper (Wallpaper Engine works), icons on/off.
+- **5 skins** (one follows the phone's Material You palette, Android 12+), animated background or your system wallpaper (Wallpaper Engine works), icons on/off.
 - No internet permission, no ads. ~55 KB. Android 11+. UI is in Spanish.
 
 **Install:** download [`releases/flow-launcher.apk`](releases/flow-launcher.apk), open it, then pick

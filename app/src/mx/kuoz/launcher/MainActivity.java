@@ -202,7 +202,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         super.onResume();
         vista.alVolver();
         vista.setWallpaperActual(wallpaperActual());
-        // Con «Tu fondo», si cambió el wallpaper mientras estaba fuera, tomar la paleta nueva
+        // Con «Color del sistema», si cambió la paleta mientras estaba fuera, tomar la paleta nueva
         Skin nueva = Skin.FONDO.equals(skin.id) ? Skin.delFondo(this) : null;
         if (nueva != null && !nueva.igual(skin)) {   // repintar solo si el wallpaper sí cambió los colores
             skin = nueva;
@@ -257,7 +257,8 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
                 publicaApps();
             });
 
-            // Íconos después, sin trabar la pantalla
+            // Íconos después, sin trabar la pantalla (apagados en Opciones: ni se cargan)
+            if (!prefs.getBoolean("iconos", true)) return;
             int lado = (int) (34 * getResources().getDisplayMetrics().density);
             int dens = getResources().getDisplayMetrics().densityDpi;
             int n = 0;
@@ -384,7 +385,10 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     public void abrir(final AppEntry a) {
         if (busca.getVisibility() == View.VISIBLE) ocultaBusca();
         cuentaUso(a);
-        vista.corte(a.mayus, () -> lanzar(a));
+        // La app se pide YA; la franja corre encima mientras arranca. Antes se esperaba a que
+        // la franja cubriera la pantalla (0.4 s) y luego apenas se pedía: se sentía lento.
+        vista.corte(a.mayus, null);
+        lanzar(a);
     }
 
     private void lanzar(AppEntry a) {
@@ -453,6 +457,13 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         boolean si = !prefs.getBoolean("iconos", true);
         prefs.edit().putBoolean("iconos", si).apply();
         vista.setIconos(si);
+        if (si) cargarApps();   // apagados no se cargan: hay que dibujarlos al prenderlos
+    }
+
+    @Override
+    public void onTrimMemory(int nivel) {
+        super.onTrimMemory(nivel);
+        if (nivel >= TRIM_MEMORY_UI_HIDDEN) vista.soltarMemoria();
     }
 
     @Override

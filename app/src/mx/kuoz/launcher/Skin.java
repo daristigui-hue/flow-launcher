@@ -4,12 +4,12 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.os.Build;
 
-/** Las paletas fijas (Carmesí, Medianoche, Dorado, Sakura) y la que sale del wallpaper (Tu fondo). */
+/** Las paletas fijas (Carmesí, Medianoche, Dorado, Sakura) y la que sale del wallpaper (Color del sistema). */
 final class Skin {
     final String id, nombre;
     final int abismo, marino, azul, cian, hielo, blanco, rojo, fuerte;
     final float rayos;       // opacidad del sol de rayos del fondo
-    final int particulas;    // 0 nada (Carmesí), 1 burbujas (Medianoche, Tu fondo), 2 pétalos (Dorado, Sakura)
+    final int particulas;    // 0 nada (Carmesí), 1 burbujas (Medianoche, Color del sistema), 2 pétalos (Dorado, Sakura)
 
     private Skin(String id, String nombre, int abismo, int marino, int azul, int cian, int hielo,
                  int blanco, int rojo, int fuerte, float rayos, int particulas) {
@@ -44,7 +44,7 @@ final class Skin {
     /** Lee la paleta actual; volver a llamarla tras cambiar de wallpaper da los colores nuevos. */
     static Skin delFondo(Context c) {
         Resources r = c.getResources();
-        return new Skin(FONDO, "TU FONDO",
+        return new Skin(FONDO, "COLOR DEL SISTEMA",
                 r.getColor(android.R.color.system_neutral1_900, null),
                 r.getColor(android.R.color.system_accent1_900, null),
                 r.getColor(android.R.color.system_accent1_700, null),
@@ -61,7 +61,7 @@ final class Skin {
                 && blanco == o.blanco && rojo == o.rojo && fuerte == o.fuerte;
     }
 
-    /** Orden del ciclo: las fijas y al final Tu fondo (si el teléfono lo soporta). */
+    /** Orden del ciclo: las fijas y al final Color del sistema (si el teléfono lo soporta). */
     Skin siguiente(Context c) {
         for (int i = 0; i < TODAS.length; i++) {
             if (!TODAS[i].id.equals(id)) continue;
