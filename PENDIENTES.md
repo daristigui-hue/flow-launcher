@@ -7,12 +7,11 @@
 4. **Contador de aperturas** con el efecto del calendario (pospuesto).
 5. Pausa: límite diario propio por app (hoy compara contra el promedio).
 6. Pausa: frases en inglés junto con el resto de la app.
-7. **Pausa: que los datos buenos también suenen a diálogo.** Hoy las nubes con buena noticia («35 % menos
-   que ayer», «4 días seguidos bajo su promedio», «Va bajo su promedio») suenan a reporte y no encajan con el
-   resto. Envolverlas en un comentario de quien la ve, con decepción: «Qué mal… hoy iba 35 % mejor que ayer»,
-   «Llevaba 4 días bajo su promedio… ¿y ahora?». Lo mismo para los datos malos («Hoy ya la usó 40 % más que ayer»).
 
 ## Hecho
+- v0.17: las nubes con datos ya no suenan a reporte: las hace alguien que observa. Lo bueno sale con
+  decepción («Qué mal… hoy iba 35 % mejor que ayer», «Llevaba 4 días bajo su promedio… ¿y ahora?») y lo
+  malo con burla («40 % más que ayer… ¿y todavía quiere más?»). Varias variantes que se turnan.
 - v0.16: la pausa dura 6, 10 (de fábrica) o 15 s, o **crece** (6 s las primeras 4 veces del día, 10 s
   hasta la 9ª, 15 s después). Cada app tiene un **tipo** (redes, mensajería, juegos, video, trabajo,
   compras, noticias u otra; se detecta solo o se elige en mantener › TIPO) y la última nube es una frase

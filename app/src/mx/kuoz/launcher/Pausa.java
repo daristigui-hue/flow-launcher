@@ -425,17 +425,26 @@ final class Pausa {
             l.add(hoy < 60_000 ? "Hoy apenas\nla ha usado" : "Lleva *" + duracion(hoy) + "*\nahí hoy");
             if (ayer >= 60_000) {
                 long pct = Math.round((hoy - ayer) * 100.0 / ayer);
-                l.add(pct == 0 ? "Hoy la usa *igual*\nque ayer" : "Hoy la usa *" + Math.abs(pct) + " % " + (pct > 0 ? "más" : "menos") + "*\nque ayer");
+                String n = Math.abs(pct) + " %";
+                if (pct == 0) l.add(elige(veces, "Va *parejo* con ayer…\npor ahora", "*Igual* que ayer…\na ver cuánto aguanta"));
+                else if (pct < 0) l.add(elige(veces, "Qué mal… hoy iba\n*" + n + " mejor* que ayer", "Iba tan bien…\n*" + n + " menos* que ayer",
+                        "Hoy llevaba *" + n + " menos*\nque ayer… hasta ahora"));
+                else l.add(elige(veces, "Hoy ya la usó\n*" + n + " más* que ayer", "*" + n + " más* que ayer…\n¿y todavía quiere más?",
+                        "Ayer se controló mejor…\nhoy va *" + n + " arriba*"));
             }
             long total = 0;
             for (int i = 1; i < UsoApps.DIAS; i++) total += uso.ms[i];
             long prom = total / (UsoApps.DIAS - 1);
             if (prom >= 60_000) {
-                if (hoy > prom) l.add("Ya pasó su promedio\nde *" + duracion(prom) + "*");
+                String p = duracion(prom);
+                if (hoy > prom) l.add(elige(veces, "Su promedio es *" + p + "*…\nhoy ya lo rebasó", "Ya se pasó de su promedio\nde *" + p + "*… y sigue"));
                 else {
                     int racha = 0;
                     for (int i = 1; i < UsoApps.DIAS && uso.ms[i] < prom; i++) racha++;
-                    l.add(racha >= 2 ? "*" + racha + " días* seguidos\nbajo su promedio" : "Va bajo su promedio\nde *" + duracion(prom) + "*");
+                    String r = racha + " días";
+                    if (racha >= 2) l.add(elige(veces, "Llevaba *" + r + "* bajo\nsu promedio… ¿y ahora?", "Qué pena… *" + r + "*\nseguidos bajo su promedio",
+                            "*" + r + "* portándose\nbien… qué lástima"));
+                    else l.add(elige(veces, "Qué mal… hoy no llegaba\na su promedio de *" + p + "*", "Hoy iba tan bien…\nbajo su promedio de *" + p + "*"));
                 }
             }
         }
@@ -450,6 +459,9 @@ final class Pausa {
         l.add(remate);
         return l;
     }
+
+    /** Turna las variantes con cada apertura, para no decir siempre lo mismo. */
+    private static String elige(int semilla, String... v) { return v[semilla % v.length]; }
 
     static String duracion(long ms) {
         long min = Math.round(ms / 60_000.0);
