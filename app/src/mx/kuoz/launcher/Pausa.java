@@ -23,8 +23,9 @@ import java.util.List;
  * MEJOR NO o ABRIR. No se puede saltar. MEJOR NO cierra con las bandas de abrir, en espejo.
  */
 final class Pausa {
-    static final long DURA = 5000, BOTONES = 5200, NO_DURA = 1950;
+    static final long NO_DURA = 1950;
     private static final long PRIMERA = 500;
+    private final long dura, botones;   // lo que dura la espera (6, 10 o 15 s) y cuándo salen los botones
 
     final AppEntry app;
     private final List<String> frases;
@@ -59,7 +60,8 @@ final class Pausa {
     private static final float[][] FORMA = {{0, .28f, .34f}, {.16f, .05f, .40f}, {.38f, 0, .36f}, {.58f, .08f, .34f},
                                             {.72f, .28f, .28f}, {.12f, .38f, .46f}, {.44f, .36f, .48f}};
 
-    Pausa(AppEntry app, List<String> frases, int resisteAntes, View vista, float d, Typeface negra, long ahora) {
+    Pausa(AppEntry app, List<String> frases, int resisteAntes, long dura, View vista, float d, Typeface negra, long ahora) {
+        this.dura = dura; this.botones = dura + 200;
         this.app = app; this.frases = frases; this.resisteAntes = resisteAntes; this.vista = vista; this.d = d; this.t0 = ahora;
         t.setTypeface(negra);
         borroso.setMaskFilter(new BlurMaskFilter(4 * d, BlurMaskFilter.Blur.NORMAL));
@@ -142,7 +144,7 @@ final class Pausa {
         // Nubes: la nueva sale abajo y empuja a las anteriores, que suben y se desvanecen
         float zonaAbajo = h - abajo - h * .27f, alto = 78 * d, cw = w * .66f;
         int vivas = 0;
-        long paso = (DURA - 600) / Math.max(1, nubes.size());
+        long paso = (dura - 600) / Math.max(1, nubes.size());
         for (int i = 0; i < nubes.size(); i++) {
             if (edad >= PRIMERA + i * paso) vivas = i + 1;
         }
@@ -179,11 +181,11 @@ final class Pausa {
         p.setColor(skin.marino); p.setAlpha((int) (255 * entrada * (1 - salida)));
         c.drawRect(bx, by, bx + bw, by + 3 * d, p);
         p.setColor(skin.cian); p.setAlpha((int) (255 * (1 - salida)));
-        c.drawRect(bx, by, bx + bw * Math.min(1, edad / (float) DURA), by + 3 * d, p);
+        c.drawRect(bx, by, bx + bw * Math.min(1, edad / (float) dura), by + 3 * d, p);
         p.setAlpha(255);
 
         // MEJOR NO (la fila elegida del inicio) y ABRIR, chico
-        if (edad >= BOTONES) {
+        if (edad >= botones) {
             if (tBotones < 0) tBotones = ahora;
             if (!avisado) { avisado = true; vista.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK); }
             float f1 = entra.getInterpolation(Math.min(1, (ahora - tBotones) / 550f));
@@ -230,8 +232,9 @@ final class Pausa {
         c.drawCircle(ox + dir * 13 * d, alto + 16 * d, 4 * d, rastro);
 
         // Texto: renglones con \n; lo que va entre *asteriscos* se resalta
-        String[] lineas = n.texto.split("\n");
-        float normal = (n.ultima ? 20 : 13) * d, grande = 17 * d;
+        float normal = (n.ultima ? 19 : 13) * d, grande = 17 * d;
+        String[] lineas = acomoda(n.texto, cw - 40 * d, normal);
+        if (lineas.length > 2 && n.ultima) { normal = 16 * d; lineas = acomoda(n.texto, cw - 40 * d, normal); }
         int tinta = n.ultima ? skin.blanco : 0xff1a1214, realce = n.ultima ? skin.blanco : skin.azul;
         float altoTotal = 0;
         float[] altos = new float[lineas.length];
@@ -255,6 +258,23 @@ final class Pausa {
         t.setAlpha(255);
     }
 
+    /** Parte en renglones lo que no cabe a lo ancho (los renglones con *realce* ya vienen partidos). */
+    private String[] acomoda(String texto, float ancho, float tam) {
+        List<String> res = new ArrayList<>();
+        t.setTextSize(tam); t.setLetterSpacing(.01f);
+        for (String linea : texto.split("\n")) {
+            if (linea.contains("*") || t.measureText(linea) <= ancho) { res.add(linea); continue; }
+            StringBuilder actual = new StringBuilder();
+            for (String palabra : linea.split(" ")) {
+                String prueba = actual.length() == 0 ? palabra : actual + " " + palabra;
+                if (actual.length() > 0 && t.measureText(prueba) > ancho) { res.add(actual.toString()); actual = new StringBuilder(palabra); }
+                else { actual = new StringBuilder(prueba); }
+            }
+            if (actual.length() > 0) res.add(actual.toString());
+        }
+        return res.toArray(new String[0]);
+    }
+
     /** MEJOR NO: entran bandas claras por la derecha, «Esta vez no» con chispas, y salen por la izquierda. */
     private void despedida(Canvas c, int w, int h, Skin skin, long e) {
         float b1 = e < 1550 ? 2 - seco.getInterpolation(Math.min(1, e / 320f)) : 1 - seco.getInterpolation(Math.min(1, (e - 1550) / 350f));
@@ -266,17 +286,72 @@ final class Pausa {
         else banda(c, path, p, w, h, b1, skin.blanco);
         if (e >= 390 && e < 1480) c.drawColor(skin.hielo);
         else banda(c, path, p, w, h, b2, skin.hielo);
+        // Todo lo de encima se apaga mientras las bandas salen, para no quedar flotando sobre el inicio
+        float vivo = 1 - Math.max(0, Math.min(1, (e - 1450) / 250f));
+        if (vivo <= 0) return;
+        float cx = w * .5f, cy = h * .46f;
 
-        // Texto: entra, se queda y se va hacia la izquierda junto con las bandas
+        // Sol de rayos detrás del texto, como el fondo del inicio
+        float fs = (e - 300) / 1600f;
+        if (fs > 0 && fs < 1) {
+            float alfa = fs < .2f ? .38f * fs / .2f : fs < .8f ? .38f - .13f * (fs - .2f) / .6f : .25f * (1 - (fs - .8f) / .2f);
+            float esc = .2f + .95f * suave.getInterpolation(fs), radio = Math.max(w, h) * .75f * esc;
+            p.setShader(new android.graphics.RadialGradient(cx, cy, radio, skin.cian, skin.cian & 0x00ffffff, android.graphics.Shader.TileMode.CLAMP));
+            p.setAlpha((int) (255 * alfa * vivo));
+            c.save();
+            c.rotate(25 * fs, cx, cy);
+            for (int k = 0; k < 24; k++) {
+                oval.set(cx - radio, cy - radio, cx + radio, cy + radio);
+                c.drawArc(oval, k * 15, 5, true, p);
+            }
+            c.restore();
+            p.setShader(null); p.setAlpha(255);
+        }
+
+        // 1ª ola: 22 estrellas que revientan desde la frase · 2ª ola: 12 destellos que parpadean en su lugar
+        int[] colores = {skin.fuerte, skin.cian, skin.azul, Color.BLACK};
+        for (int k = 0; k < 22; k++) {
+            float dur = 800 + (k % 4) * 120, g = (e - 300 - (k % 6) * 25) / dur;
+            if (g <= 0 || g >= 1) continue;
+            float ang = k / 22f * 6.28f + (float) Math.sin(k * 7) * .2f, r = (150 + (k * 53) % 170) * d;
+            float dx = (float) Math.cos(ang) * r, dy = (float) Math.sin(ang) * r;
+            float esc, alfa, mov, giro;
+            if (g < .18f) { float q = g / .18f; esc = .2f + 1.1f * q; alfa = q; mov = 0; giro = 45 * q; }
+            else if (g < .7f) { float q = (g - .18f) / .52f; esc = 1.3f - .3f * q; alfa = 1; mov = .8f * suave.getInterpolation(q); giro = 45 + 65 * q; }
+            else { float q = (g - .7f) / .3f; esc = 1 - .5f * q; alfa = 1 - q; mov = .8f + .2f * q; giro = 110 + 40 * q; }
+            float sx = w * (.15f + ((k * 31) % 66) / 100f), sy = h * (.43f + (k % 3) * .03f);
+            c.save();
+            c.translate(sx + dx * mov, sy + dy * mov);
+            c.rotate(giro);
+            c.scale(esc, esc);
+            estrella(c, (5 + (k * 7) % 18 / 2f) * d, colores[k % 4], (int) (255 * alfa * vivo));
+            c.restore();
+        }
+        for (int k = 0; k < 12; k++) {
+            float g = (e - 550 - k * 60) / 600f;
+            if (g <= 0 || g >= 1) continue;
+            float q = g < .5f ? g / .5f : (1 - g) / .5f;
+            c.save();
+            c.translate(w * (.08f + ((k * 41) % 84) / 100f), h * (.12f + ((k * 29) % 76) / 100f));
+            c.rotate(180 * g);
+            c.scale(q, q);
+            estrella(c, (4 + (k * 5) % 14 / 2f) * d, colores[k % 3], (int) (255 * q * vivo));
+            c.restore();
+        }
+
+        // Texto: entra grande y rebota a su tamaño, se queda y se va hacia la izquierda con las bandas
         float f = (e - 300) / 1500f;
         if (f > 0 && f < 1) {
             float alfa, dx;
             if (f < .18f) { float g = suave.getInterpolation(f / .18f); alfa = g; dx = 40 * (1 - g); }
             else if (f < .85f) { alfa = 1; dx = -8 * (f - .18f) / .67f; }
             else { float g = (f - .85f) / .15f; alfa = 1 - g; dx = -8 - 52 * g; }
+            float pop = 1.6f - .6f * entra.getInterpolation(Math.min(1, (e - 300) / 550f));
+            alfa *= vivo;
             c.save();
             c.translate(24 * d + dx * d, h * .46f);
             c.rotate(-7);
+            c.scale(pop, pop, w * .2f, -10 * d);
             t.setTextAlign(Paint.Align.LEFT); t.setLetterSpacing(-.03f);
             t.setTextSize(Math.min(48 * d, (w - 48 * d) / 6.2f));
             t.setColor(skin.cian); t.setAlpha((int) (255 * alfa)); c.drawText("Esta vez no", 5 * d, 5 * d, t);
@@ -290,24 +365,6 @@ final class Pausa {
             t.setColor(skin.blanco); t.setAlpha((int) (255 * alfa)); c.drawText(tag, 12 * d, 30 * d, t);
             c.restore();
             t.setAlpha(255); p.setAlpha(255);
-        }
-
-        // Chispas de cuatro puntas que salen del texto
-        for (int k = 0; k < 9; k++) {
-            float g = (e - 350 - k * 40) / 900f;
-            if (g <= 0 || g >= 1) continue;
-            float ang = k / 9f * 6.28f, r = (70 + (k % 3) * 30) * d;
-            float sx = w * (.30f + ((k * 37) % 50) / 100f), sy = h * (.36f + ((k * 23) % 22) / 100f);
-            float esc, alfa, mx = 0, my = 0, giro;
-            if (g < .3f) { float q = g / .3f; esc = .2f + 1.1f * q; alfa = q; giro = 45 * q; }
-            else { float q = suave.getInterpolation((g - .3f) / .7f); esc = 1.3f - .9f * q; alfa = 1 - q;
-                   mx = (float) Math.cos(ang) * r * q; my = (float) Math.sin(ang) * r * q; giro = 45 + 95 * q; }
-            c.save();
-            c.translate(sx + mx, sy + my);
-            c.rotate(giro);
-            c.scale(esc, esc);
-            estrella(c, 8 * d, skin.fuerte, (int) (255 * alfa));
-            c.restore();
         }
     }
 
@@ -353,7 +410,7 @@ final class Pausa {
      * Las frases de las nubes, en orden. uso = null sin el permiso «Uso de apps»: entonces solo
      * salen las veces (contadas por el launcher), la hora y la pregunta.
      */
-    static List<String> frases(UsoApps.Dias uso, int vecesPropias, Calendar ahora) {
+    static List<String> frases(UsoApps.Dias uso, int vecesPropias, Calendar ahora, String tipo, String remate) {
         List<String> l = new ArrayList<>();
         int veces = (uso != null ? uso.veces[0] : vecesPropias) + 1;
         l.add(veces == 1 ? "Es la *primera vez*\nque la abre hoy" : "Ya es la *" + veces + "ª vez*\nque la abre hoy…");
@@ -380,8 +437,11 @@ final class Pausa {
         int h12 = h24 % 12 == 0 ? 12 : h24 % 12;
         String hora = h12 + ":" + (m < 10 ? "0" : "") + m + (h24 < 12 ? " a.m." : " p.m.");
         String art = h12 == 1 ? "la" : "las";
-        l.add(h24 >= 23 || h24 < 5 ? "¿A " + art + " *" + hora + "*?\n¿No duerme?" : "Son " + art + " *" + hora + "*…");
-        l.add("¿A qué irá?");
+        boolean noche = h24 >= 23 || h24 < 5;
+        // Trabajo de noche: la hora va en el remate y no se repite en otra nube
+        if (noche && "trabajo".equals(tipo)) { l.add("¿Trabajo a " + art + " " + hora + "? ¿En serio?"); return l; }
+        l.add(noche ? "¿A " + art + " *" + hora + "*?\n¿No duerme?" : "Son " + art + " *" + hora + "*…");
+        l.add(remate);
         return l;
     }
 

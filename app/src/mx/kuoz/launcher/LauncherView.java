@@ -63,6 +63,9 @@ final class LauncherView extends View {
         void alternarPausa(AppEntry a);             // pausa consciente antes de abrirla, sí/no
         void pausaElegida(AppEntry a, boolean abrir);
         void permisoUso();
+        String tipoDe(AppEntry a);                  // id de Tipos («social», «juegos»…)
+        void elegirTipo(AppEntry a, String tipo);
+        void cambiarDuracion();                     // 6 → 10 → 15 → crece → 6
     }
 
     static final String CARPETA = "carpeta:";   // prefijo del modo que muestra una carpeta
@@ -191,7 +194,8 @@ final class LauncherView extends View {
     private List<AppEntry> conPausa = new ArrayList<>();
     private final Set<String> clavesPausa = new HashSet<>();
     private boolean permisoUso;
-    private static final int MAX_PAUSA = 6;   // + permiso + regresar = 8 ≤ opcRect
+    private int pausaSeg = 10;                // 0 = crece con las aperturas del día
+    private static final int MAX_PAUSA = 6;   // + permiso + duración + regresar = 9 ≤ opcRect
     private String opcCarpeta;
     private boolean opcConfirmaBorrar;
     private final Runnable largoItem = () -> {
@@ -277,11 +281,13 @@ final class LauncherView extends View {
 
     void setPermisoUso(boolean si) { permisoUso = si; invalidate(); }
 
+    void setPausaSeg(int seg) { pausaSeg = seg; invalidate(); }
+
     /** Arranca la pausa consciente encima de todo (5 s, no se salta). */
-    void pausa(AppEntry a, List<String> frases, int resisteHoy) {
+    void pausa(AppEntry a, List<String> frases, int resisteHoy, int segundos) {
         menuApp = null;
         opciones = false;
-        pausa = new Pausa(a, frases, resisteHoy, this, d, negra, SystemClock.uptimeMillis());
+        pausa = new Pausa(a, frases, resisteHoy, segundos * 1000L, this, d, negra, SystemClock.uptimeMillis());
         invalidate();
     }
 
@@ -947,18 +953,35 @@ final class LauncherView extends View {
             menuOps.add(new String[]{"✕ QUITAR", "F"});
             menuOps.add(new String[]{"▣ A CARPETA ›", "C"});
             menuOps.add(new String[]{"⊘ OCULTAR APP", "O"});
-            menuOps.add(new String[]{clavesPausa.contains(a.clave) ? "◷ QUITAR PAUSA" : "◷ PAUSA ANTES DE ABRIR", "Z"});
+            opsPausa(a);
         } else if (modo.startsWith(CARPETA)) {
             menuOps.add(new String[]{"↩ SACAR DE CARPETA", "S"});
             menuOps.add(new String[]{fav ? "✕ QUITAR DE FAVORITAS" : "★ FIJAR", "F"});
             menuOps.add(new String[]{"⊘ OCULTAR APP", "O"});
-            menuOps.add(new String[]{clavesPausa.contains(a.clave) ? "◷ QUITAR PAUSA" : "◷ PAUSA ANTES DE ABRIR", "Z"});
+            opsPausa(a);
         } else {
             menuOps.add(new String[]{fav ? "✕ QUITAR DE FAVORITAS" : "★ FIJAR", "F"});
             menuOps.add(new String[]{"▣ A CARPETA ›", "C"});
             menuOps.add(new String[]{"⊘ OCULTAR APP", "O"});
-            menuOps.add(new String[]{clavesPausa.contains(a.clave) ? "◷ QUITAR PAUSA" : "◷ PAUSA ANTES DE ABRIR", "Z"});
+            opsPausa(a);
         }
+        tMenu = SystemClock.uptimeMillis();
+        invalidate();
+    }
+
+    /** PAUSA sí/no y, si la tiene, su TIPO (de qué hablan las nubes). */
+    private void opsPausa(AppEntry a) {
+        boolean tiene = clavesPausa.contains(a.clave);
+        menuOps.add(new String[]{tiene ? "◷ QUITAR PAUSA" : "◷ PAUSA ANTES DE ABRIR", "Z"});
+        if (tiene) menuOps.add(new String[]{"◈ TIPO: " + Tipos.nombre(oyente.tipoDe(a)) + " ›", "T"});
+    }
+
+    /** Segundo paso de TIPO: los 8 tipos, con el actual marcado. */
+    private void menuTipos() {
+        menuOps.clear();
+        String actual = oyente.tipoDe(menuApp);
+        for (int i = 0; i < Tipos.IDS.length; i++)
+            menuOps.add(new String[]{(Tipos.IDS[i].equals(actual) ? "● " : "  ") + Tipos.NOMBRES[i], "Y" + Tipos.IDS[i]});
         tMenu = SystemClock.uptimeMillis();
         invalidate();
     }
@@ -983,6 +1006,8 @@ final class LauncherView extends View {
             case 'S': oyente.sacarDeCarpeta(a, modo.substring(CARPETA.length())); break;
             case 'R': oyente.renombrarCarpeta(a.carpetaId); break;
             case 'Z': oyente.alternarPausa(a); break;
+            case 'T': menuApp = a; menuTipos(); return;
+            case 'Y': oyente.elegirTipo(a, acc.substring(1)); break;
             case 'O':
                 oyente.ocultar(a);
                 if (BUSCA.equals(modo)) { visibles.remove(a); sel = Math.min(sel, Math.max(0, visibles.size() - 1)); }
@@ -1590,6 +1615,7 @@ final class LauncherView extends View {
             l.add(new String[]{"PAUSA ANTES DE ABRIR", conPausa.size() + " APPS · ADMINISTRAR ›"});
         } else if (opcPagina == 4) {
             l.add(new String[]{"PERMISO · USO DE APPS", permisoUso ? "SÍ · VE TIEMPO Y PROMEDIO" : "NO · DAR PERMISO ›"});
+            l.add(new String[]{"DURACIÓN", pausaSeg == 0 ? "CRECE · 6 → 10 → 15 S" : pausaSeg + " SEGUNDOS"});
             for (int i = 0; i < conPausa.size() && i < MAX_PAUSA; i++)
                 l.add(new String[]{"CON PAUSA · TOCA PARA QUITAR", conPausa.get(i).mayus});
             if (conPausa.isEmpty()) l.add(new String[]{"NINGUNA", "MANTÉN UNA APP › PAUSA"});
@@ -1638,8 +1664,9 @@ final class LauncherView extends View {
         } else if (opcPagina == 4) {
             int n = Math.min(conPausa.size(), MAX_PAUSA);
             if (i == 0) { if (!permisoUso) { opciones = false; oyente.permisoUso(); } }
-            else if (i <= n) oyente.alternarPausa(conPausa.get(i - 1));   // la página se queda
-            else if (conPausa.isEmpty() && i == 1) { }
+            else if (i == 1) oyente.cambiarDuracion();
+            else if (i <= n + 1) oyente.alternarPausa(conPausa.get(i - 2));   // la página se queda
+            else if (conPausa.isEmpty() && i == 2) { }
             else opcPagina = 0;
         } else if (opcPagina == 3) {
             int n = Math.min(ocultas.size(), MAX_OCULTAS);

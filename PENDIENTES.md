@@ -6,8 +6,14 @@
 3. **Inglés:** textos según el idioma del teléfono (hoy solo español).
 4. **Contador de aperturas** con el efecto del calendario (pospuesto).
 5. Pausa: límite diario propio por app (hoy compara contra el promedio).
+6. Pausa: frases en inglés junto con el resto de la app.
 
 ## Hecho
+- v0.16: la pausa dura 6, 10 (de fábrica) o 15 s, o **crece** (6 s las primeras 4 veces del día, 10 s
+  hasta la 9ª, 15 s después). Cada app tiene un **tipo** (redes, mensajería, juegos, video, trabajo,
+  compras, noticias u otra; se detecta solo o se elige en mantener › TIPO) y la última nube es una frase
+  de ese tipo, sin repetir la anterior. «Esta vez no» con sol de rayos, 22 estrellas y destellos. Si
+  Android bloquea el permiso de uso, Flow lleva a Info de la app para liberarlo.
 - v0.15: **pausa antes de abrir** (mantener una app › ◷ PAUSA ANTES DE ABRIR; lista en Opciones › PAUSA).
   Al abrirla salen durante 5 s, sin poder saltarse, nubes de pensamiento en tercera persona: veces que
   se abrió hoy, tiempo de hoy, % contra ayer, comparación con el promedio de los 7 días anteriores, la

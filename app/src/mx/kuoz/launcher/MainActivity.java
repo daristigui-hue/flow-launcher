@@ -133,6 +133,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         vista.setIconos(prefs.getBoolean("iconos", true));
         vista.setFranjaCompleta(prefs.getBoolean("franja", true));
         vista.setAbrirAlSoltar(prefs.getBoolean("soltar", false));
+        vista.setPausaSeg(prefs.getInt("pausa_seg", 10));
         aplicarFondo();
         vista.setOpciones(skin.nombre, version());
         raiz.addView(vista, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -460,11 +461,20 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         int[] v = cuentasHoy().get(a.clave);
         final int veces = v == null ? 0 : v[0], resiste = v == null ? 0 : v[1];
         final String pkg = paquete(a);
+        // El remate (última nube) sale del tipo de la app, sin repetir el de la vez anterior
+        final String tipo = tipoDe(a);
+        int k = Tipos.elige(tipo, prefs.getInt("pausa_frase_" + tipo, -1), new java.util.Random());
+        prefs.edit().putInt("pausa_frase_" + tipo, k).apply();
+        final String remate = Tipos.frase(tipo, k);
+        final int ajuste = prefs.getInt("pausa_seg", 10);
         new Thread(() -> {
             UsoApps.Dias uso = null;
             try { uso = UsoApps.leer(this, pkg); } catch (RuntimeException ignorado) { }   // sin datos: salen solo las nubes básicas
-            final List<String> frases = Pausa.frases(uso, veces, java.util.Calendar.getInstance());
-            ui.post(() -> { pausaEnCamino = false; vista.pausa(a, frases, resiste); });
+            final List<String> frases = Pausa.frases(uso, veces, java.util.Calendar.getInstance(), tipo, remate);
+            // «Crece»: 6 s las primeras 4 veces del día, 10 s hasta la 9ª y 15 s de ahí en adelante
+            int vez = (uso != null ? uso.veces[0] : veces) + 1;
+            final int seg = ajuste != 0 ? ajuste : vez <= 4 ? 6 : vez <= 9 ? 10 : 15;
+            ui.post(() -> { pausaEnCamino = false; vista.pausa(a, frases, resiste, seg); });
         }, "pausa").start();
     }
 
@@ -486,7 +496,46 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     }
 
     @Override
+    public String tipoDe(AppEntry a) {
+        for (String l : prefs.getString("tipos", "").split("\n")) {
+            int t = l.indexOf('\t');
+            if (t > 0 && l.substring(0, t).equals(a.clave)) return l.substring(t + 1);
+        }
+        return Tipos.detecta(a, paquete(a));
+    }
+
+    @Override
+    public void elegirTipo(AppEntry a, String tipo) {
+        StringBuilder sb = new StringBuilder();
+        for (String l : prefs.getString("tipos", "").split("\n"))
+            if (!l.isEmpty() && !l.startsWith(a.clave + "\t")) sb.append(l).append('\n');
+        sb.append(a.clave).append('\t').append(tipo);
+        prefs.edit().putString("tipos", sb.toString()).apply();
+        vista.aviso(Tipos.nombre(tipo));
+    }
+
+    @Override
+    public void cambiarDuracion() {
+        int seg = prefs.getInt("pausa_seg", 10);
+        seg = seg == 6 ? 10 : seg == 10 ? 15 : seg == 15 ? 0 : 6;
+        prefs.edit().putInt("pausa_seg", seg).apply();
+        vista.setPausaSeg(seg);
+    }
+
+    @Override
     public void permisoUso() {
+        // Instalada fuera de Play Store, Android bloquea el permiso («ajuste restringido») hasta que la
+        // persona lo libera en Info de la app › ⋮. Si ya se intentó una vez y sigue sin permiso, ir ahí.
+        int intentos = prefs.getInt("permiso_intentos", 0);
+        prefs.edit().putInt("permiso_intentos", intentos + 1).apply();
+        if (intentos > 0) {
+            try {
+                startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName())));
+                android.widget.Toast.makeText(this, "Toca ⋮ (arriba a la derecha) › Permitir ajustes restringidos. "
+                        + "Luego vuelve a Opciones › PAUSA › PERMISO.", android.widget.Toast.LENGTH_LONG).show();
+                return;
+            } catch (Exception ignorado) { }
+        }
         // En Pixel abre directo la página de Flow; si no, la lista de apps con acceso
         try { startActivity(new Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:" + getPackageName()))); }
         catch (Exception e) {
