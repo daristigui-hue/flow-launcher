@@ -2,12 +2,12 @@
 
 ## App
 1. **Widgets** en la pantalla de inicio (a futuro).
-2. **Color según el wallpaper:** que la skin tome sus colores del wallpaper actual
-   (Android 12+ da la paleta del fondo: `WallpaperManager.getWallpaperColors`).
-3. Avisos bajo el nombre de la app (NotificationListener), como Niagara.
-4. **Inglés:** textos según el idioma del teléfono (hoy solo español).
+2. Avisos bajo el nombre de la app (NotificationListener), como Niagara.
+3. **Inglés:** textos según el idioma del teléfono (hoy solo español).
 
 ## Hecho
+- v0.10: skin **Sakura** (rosa) y skin **Tu fondo**, que usa la paleta de Material You que Android
+  saca del wallpaper (sirve también con fondos animados). Se recalcula al volver al inicio.
 - v0.9: la ola ya no encasilla en una letra. Lleva a donde empieza esa letra dentro de una sola
   lista con todas las apps, que se desliza con el dedo y sigue de largo con inercia.
 

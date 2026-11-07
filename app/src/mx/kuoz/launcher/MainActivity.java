@@ -111,7 +111,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         prefs = getSharedPreferences("launcher", MODE_PRIVATE);
         launcherApps = getSystemService(LauncherApps.class);
         usuarios = getSystemService(UserManager.class);
-        skin = Skin.por(prefs.getString("skin", "p5"));
+        skin = Skin.por(this, prefs.getString("skin", "p5"));
 
         raiz = new FrameLayout(this);
         vista = new LauncherView(this, skin, this);
@@ -188,6 +188,12 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         super.onResume();
         vista.alVolver();
         vista.setWallpaperActual(wallpaperActual());
+        // Con «Tu fondo», si cambió el wallpaper mientras estaba fuera, tomar la paleta nueva
+        if (Skin.FONDO.equals(skin.id)) {
+            skin = Skin.delFondo(this);
+            vista.setSkin(skin);
+            estiloBusca();
+        }
         // El calendario de Persona sale la primera vez que se ve el inicio en el día
         String hoy = LocalDate.now().toString();
         if (!hoy.equals(prefs.getString("ultimo_dia", ""))) {
@@ -373,7 +379,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
 
     @Override
     public void cambiarSkin() {
-        skin = skin.siguiente();
+        skin = skin.siguiente(this);
         prefs.edit().putString("skin", skin.id).apply();
         vista.setSkin(skin);
         vista.setOpciones(skin.nombre, version());

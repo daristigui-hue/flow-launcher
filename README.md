@@ -2,7 +2,7 @@
 
 Launcher minimalista para Android: tus favoritas en una lista y una columna con el
 alfabeto en la orilla para llegar a cualquier app con el pulgar. Animado, con resortes,
-bloques ladeados y tres skins.
+bloques ladeados y cinco skins.
 
 *English below.*
 
@@ -13,7 +13,8 @@ bloques ladeados y tres skins.
 - **Carpetas**, dentro de la columna o en el inicio.
 - **Ocultar apps** que no usas: mantén la app › *OCULTAR APP*. Se recuperan en
   *Opciones › APPS OCULTAS*.
-- **3 skins** (Carmesí, Medianoche, Dorado), fondo animado o el wallpaper del teléfono
+- **5 skins**: Carmesí, Medianoche, Dorado, Sakura y «Tu fondo» (toma los colores del
+  wallpaper, Android 12+); fondo animado o el wallpaper del teléfono
   (incluido Wallpaper Engine), íconos sí/no.
 - Toca la hora para abrir el calendario. Mantén la hora o un espacio vacío para ver las *Opciones*.
 - Sin internet, sin anuncios, sin permisos raros. Pesa ~55 KB.
@@ -49,13 +50,13 @@ MIT — ver [LICENSE](LICENSE).
 # Flow Launcher (English)
 
 A minimalist Android launcher: favorites in a list plus an alphabet column on the edge, so
-any app is one thumb swipe away. Springy animations, tilted blocks and three skins.
+any app is one thumb swipe away. Springy animations, tilted blocks and five skins.
 
 - **Favorites** on the home screen; long-press and drag to reorder.
 - **Alphabet column**: slide your thumb to a letter, tap an app to open it (swiping never opens anything).
 - **Folders**, in the column or on the home screen.
 - **Hide apps**: long-press › *OCULTAR APP*; bring them back in *Opciones › APPS OCULTAS*.
-- **3 skins**, animated background or your system wallpaper (Wallpaper Engine works), icons on/off.
+- **5 skins** (one takes its colors from your wallpaper, Android 12+), animated background or your system wallpaper (Wallpaper Engine works), icons on/off.
 - No internet permission, no ads. ~55 KB. Android 11+. UI is in Spanish.
 
 **Install:** download [`releases/flow-launcher.apk`](releases/flow-launcher.apk), open it, then pick
