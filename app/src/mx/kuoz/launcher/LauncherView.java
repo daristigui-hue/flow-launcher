@@ -976,12 +976,13 @@ final class LauncherView extends View {
         if (tiene) menuOps.add(new String[]{"◈ TIPO: " + Tipos.nombre(oyente.tipoDe(a)) + " ›", "T"});
     }
 
-    /** Segundo paso de TIPO: los 8 tipos, con el actual marcado. */
+    /** Segundo paso de TIPO: el actual primero (el 1er bloque va resaltado) y luego los demás. */
     private void menuTipos() {
         menuOps.clear();
         String actual = oyente.tipoDe(menuApp);
+        menuOps.add(new String[]{"● " + Tipos.nombre(actual), "Y" + actual});
         for (int i = 0; i < Tipos.IDS.length; i++)
-            menuOps.add(new String[]{(Tipos.IDS[i].equals(actual) ? "● " : "  ") + Tipos.NOMBRES[i], "Y" + Tipos.IDS[i]});
+            if (!Tipos.IDS[i].equals(actual)) menuOps.add(new String[]{Tipos.NOMBRES[i], "Y" + Tipos.IDS[i]});
         tMenu = SystemClock.uptimeMillis();
         invalidate();
     }

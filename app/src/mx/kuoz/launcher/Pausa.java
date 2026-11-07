@@ -53,6 +53,8 @@ final class Pausa {
         final Resorte y = new Resorte(70, .95f), alfa = new Resorte(70, .95f);
         final float[][] bolas = new float[7][4];   // x, y, ancho, alto (fracciones de la nube)
         long nace = -1;
+        String[] lineas;   // ya partidas a lo ancho (se arman una vez, no en cada cuadro)
+        float tam;
         Nube(String texto, boolean der, boolean ultima) { this.texto = texto; this.der = der; this.ultima = ultima; }
     }
 
@@ -232,9 +234,13 @@ final class Pausa {
         c.drawCircle(ox + dir * 13 * d, alto + 16 * d, 4 * d, rastro);
 
         // Texto: renglones con \n; lo que va entre *asteriscos* se resalta
-        float normal = (n.ultima ? 19 : 13) * d, grande = 17 * d;
-        String[] lineas = acomoda(n.texto, cw - 40 * d, normal);
-        if (lineas.length > 2 && n.ultima) { normal = 16 * d; lineas = acomoda(n.texto, cw - 40 * d, normal); }
+        if (n.lineas == null) {
+            n.tam = (n.ultima ? 19 : 13) * d;
+            n.lineas = acomoda(n.texto, cw - 40 * d, n.tam);
+            if (n.lineas.length > 2 && n.ultima) { n.tam = 16 * d; n.lineas = acomoda(n.texto, cw - 40 * d, n.tam); }
+        }
+        float normal = n.tam, grande = 17 * d;
+        String[] lineas = n.lineas;
         int tinta = n.ultima ? skin.blanco : 0xff1a1214, realce = n.ultima ? skin.blanco : skin.azul;
         float altoTotal = 0;
         float[] altos = new float[lineas.length];

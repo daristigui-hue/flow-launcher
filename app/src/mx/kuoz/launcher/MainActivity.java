@@ -525,13 +525,14 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     @Override
     public void permisoUso() {
         // Instalada fuera de Play Store, Android bloquea el permiso («ajuste restringido») hasta que la
-        // persona lo libera en Info de la app › ⋮. Si ya se intentó una vez y sigue sin permiso, ir ahí.
+        // persona lo libera en Info de la app › ⋮. Intentos alternados: Uso de apps, Info de la app, Uso de
+        // apps… así tras liberarlo el siguiente toque sí llega al interruptor.
         int intentos = prefs.getInt("permiso_intentos", 0);
         prefs.edit().putInt("permiso_intentos", intentos + 1).apply();
-        if (intentos > 0) {
+        if (intentos % 2 == 1) {
             try {
                 startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName())));
-                android.widget.Toast.makeText(this, "Toca ⋮ (arriba a la derecha) › Permitir ajustes restringidos. "
+                android.widget.Toast.makeText(this, "⋮ (arriba a la derecha) › Permitir ajustes restringidos / Allow restricted settings. "
                         + "Luego vuelve a Opciones › PAUSA › PERMISO.", android.widget.Toast.LENGTH_LONG).show();
                 return;
             } catch (Exception ignorado) { }
