@@ -598,13 +598,15 @@ final class LauncherView extends View {
         mueve |= ola(c, w, h, dt);
         mueve |= avisoDibuja(c, w, h, ahora, dt);
         if (opciones) mueve |= opcionesDibuja(c, w, h, ahora);
-        mueve |= corteDibuja(c, w, h, ahora);
-        mueve |= calendarioDibuja(c, w, h, ahora, dt);
+        // La pausa va debajo de la franja: al elegir ABRIR sigue pintada hasta que la franja la tapa
         if (pausa != null) {
             pausa.dibuja(c, w, h, insetArriba, insetAbajo, skin, ahora, dt);
             mueve = true;
             if (pausa.termino(ahora)) { AppEntry a = pausa.app; pausa = null; oyente.pausaElegida(a, false); }
+            else if (pausa.tapada(ahora)) pausa = null;
         }
+        mueve |= corteDibuja(c, w, h, ahora);
+        mueve |= calendarioDibuja(c, w, h, ahora, dt);
 
         // Con algo moviéndose: a la tasa de la pantalla. Quieto: el fondo a ~20 fps
         // para no gastar batería (y nada si la ventana no se ve: onDraw ya no llega).
@@ -1250,10 +1252,11 @@ final class LauncherView extends View {
             c.rotate(i % 2 == 0 ? -3 : -1.5f);
             c.translate(7 * d, 7 * d); poligono(c, 0, 0, ancho, alto, new float[]{0, .08f, 1, 0, .98f, 1, .01f, .9f}, skin.fuerte);
             c.translate(-7 * d, -7 * d); poligono(c, 0, 0, ancho, alto, new float[]{0, .08f, 1, 0, .98f, 1, .01f, .9f}, skin.blanco);
-            t.setColor(skin.fuerte); t.setTextSize(12 * d); t.setLetterSpacing(.3f);
-            c.drawText(filas.get(i)[0], 18 * d, 25 * d, t);
-            t.setColor(Color.BLACK); t.setTextSize(22 * d); t.setLetterSpacing(-.01f);
-            c.drawText(filas.get(i)[1], 18 * d, 53 * d, t);
+            // Proporcional al alto: con 10 filas en pantallas chicas la barra se aprieta y el texto se salía
+            t.setColor(skin.fuerte); t.setTextSize(Math.min(12 * d, alto * .19f)); t.setLetterSpacing(.3f);
+            c.drawText(filas.get(i)[0], 18 * d, alto * .39f, t);
+            t.setColor(Color.BLACK); t.setTextSize(Math.min(22 * d, alto * .34f)); t.setLetterSpacing(-.01f);
+            c.drawText(filas.get(i)[1], 18 * d, alto * .83f, t);
             c.restore();
             y += paso;
         }
@@ -1373,10 +1376,10 @@ final class LauncherView extends View {
 
         // Capas encima de la lista: se llevan el toque completo
         if (pausa != null) {
-            if (accion == MotionEvent.ACTION_UP && pausa.toca(x, y, SystemClock.uptimeMillis()) == 1) {
-                AppEntry a = pausa.app;
-                pausa = null;
-                oyente.pausaElegida(a, true);
+            long ahora = SystemClock.uptimeMillis();
+            if (accion == MotionEvent.ACTION_UP && pausa.toca(x, y, ahora) == 1) {
+                pausa.abriendo(ahora);
+                oyente.pausaElegida(pausa.app, true);
             }
             invalidate();
             return true;

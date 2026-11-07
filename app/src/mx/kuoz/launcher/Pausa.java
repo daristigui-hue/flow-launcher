@@ -32,7 +32,7 @@ final class Pausa {
     private final View vista;
     private final float d;
     private final long t0;
-    private long tNo = -1, tBotones = -1;
+    private long tNo = -1, tBotones = -1, tSi = -1;
     private boolean avisado;
 
     private final List<Nube> nubes = new ArrayList<>();
@@ -83,18 +83,24 @@ final class Pausa {
 
     /** Atrás / inicio durante la pausa = MEJOR NO (nunca abre la app). */
     void mejorNo(long ahora) {
-        if (tNo >= 0) return;
+        if (tNo >= 0 || tSi >= 0) return;
         tNo = ahora;
         vista.performHapticFeedback(HapticFeedbackConstants.CONFIRM);
     }
 
     /** 1 = eligió ABRIR, 0 = MEJOR NO, -1 = nada (el toque se lo queda la pausa de todos modos). */
     int toca(float x, float y, long ahora) {
-        if (tNo >= 0 || tBotones < 0) return -1;
+        if (tNo >= 0 || tSi >= 0 || tBotones < 0) return -1;
         if (rNo.contains(x, y)) { mejorNo(ahora); return 0; }
         if (rSi.contains(x, y)) { vista.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); return 1; }
         return -1;
     }
+
+    /** Eligió ABRIR: la pausa se sigue pintando mientras entra la franja, ya sin responder. */
+    void abriendo(long ahora) { tSi = ahora; }
+
+    /** true cuando la franja de abrir ya cubrió la pantalla (entra en 0.4 s). */
+    boolean tapada(long ahora) { return tSi >= 0 && ahora - tSi > 420; }
 
     /** true cuando la animación de MEJOR NO terminó (hay que quitar la pausa). */
     boolean termino(long ahora) { return tNo >= 0 && ahora - tNo > NO_DURA; }
@@ -254,8 +260,12 @@ final class Pausa {
         float b1 = e < 1550 ? 2 - seco.getInterpolation(Math.min(1, e / 320f)) : 1 - seco.getInterpolation(Math.min(1, (e - 1550) / 350f));
         float b2 = e < 1480 ? 2 - seco.getInterpolation(Math.max(0, Math.min(1, (e - 70) / 320f)))
                             : 1 - seco.getInterpolation(Math.min(1, (e - 1480) / 350f));
-        banda(c, path, p, w, h, b1, skin.blanco);
-        banda(c, path, p, w, h, b2, skin.hielo);
+        // Con la pantalla alta la banda deja destapada la esquina de arriba a la izquierda: mientras
+        // las dos están dentro se rellena todo (la banda es la misma de abrir y no se toca)
+        if (e >= 320 && e < 1550) c.drawColor(skin.blanco);
+        else banda(c, path, p, w, h, b1, skin.blanco);
+        if (e >= 390 && e < 1480) c.drawColor(skin.hielo);
+        else banda(c, path, p, w, h, b2, skin.hielo);
 
         // Texto: entra, se queda y se va hacia la izquierda junto con las bandas
         float f = (e - 300) / 1500f;
