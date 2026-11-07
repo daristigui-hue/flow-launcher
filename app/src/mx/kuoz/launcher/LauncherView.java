@@ -58,6 +58,7 @@ final class LauncherView extends View {
         void alternarCarpetaInicio(String carpetaId);
         void ocultar(AppEntry a);                   // fuera de la ola, búsqueda y favoritas
         void mostrar(String clave);
+        void alternarFranja();
     }
 
     static final String CARPETA = "carpeta:";   // prefijo del modo que muestra una carpeta
@@ -304,6 +305,14 @@ final class LauncherView extends View {
     }
 
     void setIconos(boolean si) { iconos = si; invalidate(); }
+
+    /** true = la app se abre cuando la franja ya cubrió la pantalla (el efecto completo, 0.4 s);
+     *  false = se pide al instante y la franja corre encima. */
+    private boolean franjaCompleta = true;
+
+    void setFranjaCompleta(boolean si) { franjaCompleta = si; invalidate(); }
+
+    boolean franjaCompleta() { return franjaCompleta; }
 
     /** true = se ve el wallpaper del sistema (p. ej. Wallpaper Engine) detrás de la lista. */
     void setWallpaper(boolean si) { wallpaper = si; invalidate(); }
@@ -1172,7 +1181,10 @@ final class LauncherView extends View {
         c.restore();
 
         List<String[]> filas = filasOpciones();
-        float y = insetArriba + 190 * d, alto = 64 * d;
+        float y = insetArriba + 190 * d;
+        // Con muchas filas se aprietan para no tapar el pie (RAM / versión)
+        float paso = Math.min(78 * d, (h - insetAbajo - 64 * d - y) / Math.max(1, Math.min(filas.size(), opcRect.length)));
+        float alto = Math.min(64 * d, paso - 8 * d);
         for (int i = 0; i < opcRect.length; i++) opcRect[i].setEmpty();
         for (int i = 0; i < filas.size() && i < opcRect.length; i++) {
             float f = (edad - 120 - i * 70) / 420f;
@@ -1190,7 +1202,7 @@ final class LauncherView extends View {
             t.setColor(Color.BLACK); t.setTextSize(22 * d); t.setLetterSpacing(-.01f);
             c.drawText(filas.get(i)[1], 18 * d, 53 * d, t);
             c.restore();
-            y += alto + 14 * d;
+            y += paso;
         }
         t.setColor(skin.hielo); t.setAlpha(140); t.setTextSize(11 * d); t.setLetterSpacing(.25f);
         c.drawText("RAM " + ramMb + " MB  ·  EN REPOSO " + cuadrosAntes + " CUADROS/S", 22 * d, h - insetAbajo - 44 * d, t);
@@ -1496,6 +1508,7 @@ final class LauncherView extends View {
             l.add(new String[]{"CARPETAS", carpetas.size() + " · ADMINISTRAR ›"});
             l.add(new String[]{"APPS OCULTAS", ocultas.size() + " · ADMINISTRAR ›"});
             l.add(new String[]{"PANTALLA DE INICIO", "ELEGIR LAUNCHER ›"});
+            l.add(new String[]{"AL ABRIR UNA APP", franjaCompleta ? "FRANJA COMPLETA" : "AL INSTANTE"});
         } else if (opcPagina == 3) {
             for (int i = 0; i < ocultas.size() && i < MAX_OCULTAS; i++)
                 l.add(new String[]{"OCULTA · TOCA PARA MOSTRAR", ocultas.get(i).mayus});
@@ -1534,6 +1547,7 @@ final class LauncherView extends View {
             else if (i == 4) opcPagina = 1;
             else if (i == 5) opcPagina = 3;
             else if (i == 6) { opciones = false; oyente.ajustesInicio(); }
+            else if (i == 7) oyente.alternarFranja();
         } else if (opcPagina == 3) {
             int n = Math.min(ocultas.size(), MAX_OCULTAS);
             if (i < n) oyente.mostrar(ocultas.get(i).clave);   // la página se queda: sale la siguiente

@@ -129,6 +129,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         raiz = new FrameLayout(this);
         vista = new LauncherView(this, skin, this);
         vista.setIconos(prefs.getBoolean("iconos", true));
+        vista.setFranjaCompleta(prefs.getBoolean("franja", true));
         aplicarFondo();
         vista.setOpciones(skin.nombre, version());
         raiz.addView(vista, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -385,10 +386,10 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     public void abrir(final AppEntry a) {
         if (busca.getVisibility() == View.VISIBLE) ocultaBusca();
         cuentaUso(a);
-        // La app se pide YA; la franja corre encima mientras arranca. Antes se esperaba a que
-        // la franja cubriera la pantalla (0.4 s) y luego apenas se pedía: se sentía lento.
-        vista.corte(a.mayus, null);
-        lanzar(a);
+        // Opción «al abrir una app»: con la franja completa la app se pide cuando ya cubrió la
+        // pantalla (0.4 s, el efecto entero); al instante se pide ya y la franja corre encima.
+        if (vista.franjaCompleta()) vista.corte(a.mayus, () -> lanzar(a));
+        else { vista.corte(a.mayus, null); lanzar(a); }
     }
 
     private void lanzar(AppEntry a) {
@@ -458,6 +459,13 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         prefs.edit().putBoolean("iconos", si).apply();
         vista.setIconos(si);
         if (si) cargarApps();   // apagados no se cargan: hay que dibujarlos al prenderlos
+    }
+
+    @Override
+    public void alternarFranja() {
+        boolean si = !prefs.getBoolean("franja", true);
+        prefs.edit().putBoolean("franja", si).apply();
+        vista.setFranjaCompleta(si);
     }
 
     @Override
