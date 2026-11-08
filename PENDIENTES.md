@@ -15,6 +15,8 @@
 8. Pausa con Shizuku: suspender la app de verdad (`pm suspend`), opcional, con Shizuku corriendo.
 
 ## Hecho
+- v0.20.1: en Opciones › PAUSA las apps con pausa van en un desplegable (un renglón que se abre),
+  no una por renglón; el aviso de permiso del blanco y negro ya cabe.
 - v0.20: blanco y negro al abrir una app con pausa (corrección de color de Android en escala de grises);
   el color vuelve al regresar al inicio y se respeta la corrección de color que ya se tuviera. Requiere
   dar un permiso una vez por shell (Shizuku + aShell, o adb); Opciones › PAUSA › BLANCO Y NEGRO copia

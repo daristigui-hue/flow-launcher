@@ -196,7 +196,8 @@ final class LauncherView extends View {
     private boolean permisoUso;
     private boolean gris = true, grisPermiso;   // blanco y negro al abrir una app con pausa
     private int pausaSeg = 10;                // 0 = crece con las aperturas del día
-    private static final int MAX_PAUSA = 6;   // + permiso + duración + gris + regresar = 10 ≤ opcRect
+    private static final int MAX_PAUSA = 5;   // + permiso + duración + gris + desplegable + regresar = 10 ≤ opcRect
+    private boolean pausaLista;                // desplegable de apps con pausa abierto
     private String opcCarpeta;
     private boolean opcConfirmaBorrar;
     /** Elegir el listado (Opciones › APPS EN EL LISTADO): la tira trae también las ocultas y
@@ -1700,11 +1701,14 @@ final class LauncherView extends View {
         } else if (opcPagina == 4) {
             l.add(new String[]{"PERMISO · USO DE APPS", permisoUso ? "SÍ · VE TIEMPO Y PROMEDIO" : "NO · DAR PERMISO ›"});
             l.add(new String[]{"DURACIÓN", pausaSeg == 0 ? "CRECE · 6 → 10 → 15 S" : pausaSeg + " SEGUNDOS"});
-            l.add(new String[]{"BLANCO Y NEGRO AL ABRIR", !grisPermiso ? "FALTA PERMISO · COPIAR COMANDOS ›" : gris ? "SÍ" : "NO"});
-            for (int i = 0; i < conPausa.size() && i < MAX_PAUSA; i++)
-                l.add(new String[]{"CON PAUSA · TOCA PARA QUITAR", conPausa.get(i).mayus});
-            if (conPausa.isEmpty()) l.add(new String[]{"NINGUNA", "MANTÉN UNA APP › PAUSA"});
-            l.add(new String[]{conPausa.size() > MAX_PAUSA ? "+" + (conPausa.size() - MAX_PAUSA) + " MÁS" : "", "‹ REGRESAR"});
+            l.add(new String[]{"BLANCO Y NEGRO AL ABRIR", !grisPermiso ? "SIN PERMISO · COPIAR ›" : gris ? "SÍ" : "NO"});
+            // Desplegable: cerrado es un solo renglón; abierto, las apps debajo para tocarlas y quitarlas
+            if (conPausa.isEmpty()) l.add(new String[]{"APPS CON PAUSA · NINGUNA", "MANTÉN UNA APP › PAUSA"});
+            else l.add(new String[]{"APPS CON PAUSA", conPausa.size() + (pausaLista ? " · OCULTAR ‹" : " · MOSTRAR ›")});
+            if (pausaLista)
+                for (int i = 0; i < conPausa.size() && i < MAX_PAUSA; i++)
+                    l.add(new String[]{"TOCA PARA QUITAR", conPausa.get(i).mayus});
+            l.add(new String[]{pausaLista && conPausa.size() > MAX_PAUSA ? "+" + (conPausa.size() - MAX_PAUSA) + " MÁS" : "", "‹ REGRESAR"});
         } else if (opcPagina == 1) {
             for (int i = 0; i < carpetas.size() && i < 5; i++) {
                 Carpeta c = carpetas.get(i);
@@ -1740,14 +1744,14 @@ final class LauncherView extends View {
             else if (i == 6) { opciones = false; oyente.ajustesInicio(); }
             else if (i == 7) oyente.alternarFranja();
             else if (i == 8) oyente.alternarSoltar();
-            else if (i == 9) opcPagina = 4;
+            else if (i == 9) { opcPagina = 4; pausaLista = false; }
         } else if (opcPagina == 4) {
-            int n = Math.min(conPausa.size(), MAX_PAUSA);
+            int n = pausaLista ? Math.min(conPausa.size(), MAX_PAUSA) : 0;
             if (i == 0) { if (!permisoUso) { opciones = false; oyente.permisoUso(); } }
             else if (i == 1) oyente.cambiarDuracion();
             else if (i == 2) oyente.alternarGris();
-            else if (i <= n + 2) oyente.alternarPausa(conPausa.get(i - 3));   // la página se queda
-            else if (conPausa.isEmpty() && i == 3) { }
+            else if (i == 3) { if (!conPausa.isEmpty()) pausaLista = !pausaLista; }
+            else if (i <= n + 3) oyente.alternarPausa(conPausa.get(i - 4));   // la página se queda
             else opcPagina = 0;
         } else if (opcPagina == 1) {
             int n = Math.min(carpetas.size(), 5);
