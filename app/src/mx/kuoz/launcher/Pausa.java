@@ -414,12 +414,15 @@ final class Pausa {
 
     /**
      * Las frases de las nubes, en orden. uso = null sin el permiso «Uso de apps»: entonces solo
-     * salen las veces (contadas por el launcher), la hora y la pregunta.
+     * salen las veces y la última apertura (contadas por el launcher), la hora y la pregunta.
+     * abiertaPropia = última vez que se abrió desde Flow (-1 = nunca).
      */
-    static List<String> frases(UsoApps.Dias uso, int vecesPropias, Calendar ahora, String tipo, String remate) {
+    static List<String> frases(UsoApps.Dias uso, int vecesPropias, long abiertaPropia, Calendar ahora, String tipo, String remate) {
         List<String> l = new ArrayList<>();
         int veces = (uso != null ? uso.veces[0] : vecesPropias) + 1;
         l.add(veces == 1 ? "Es la *primera vez*\nque la abre hoy" : "Ya es la *" + veces + "ª vez*\nque la abre hoy…");
+        String hace = hace(uso != null && uso.ultima >= 0 ? uso.ultima : abiertaPropia, ahora.getTimeInMillis(), veces);
+        if (hace != null) l.add(hace);
         if (uso != null) {
             long hoy = uso.ms[0], ayer = uso.ms[1];
             l.add(hoy < 60_000 ? "Hoy apenas\nla ha usado" : "Lleva *" + duracion(hoy) + "*\nahí hoy");
@@ -449,15 +452,43 @@ final class Pausa {
             }
         }
         int h24 = ahora.get(Calendar.HOUR_OF_DAY), m = ahora.get(Calendar.MINUTE);
-        int h12 = h24 % 12 == 0 ? 12 : h24 % 12;
-        String hora = h12 + ":" + (m < 10 ? "0" : "") + m + (h24 < 12 ? " a.m." : " p.m.");
-        String art = h12 == 1 ? "la" : "las";
-        boolean noche = h24 >= 23 || h24 < 5;
-        // Trabajo de noche: la hora va en el remate y no se repite en otra nube
-        if (noche && "trabajo".equals(tipo)) { l.add("¿Trabajo a " + art + " " + hora + "? ¿En serio?"); return l; }
-        l.add(noche ? "¿A " + art + " *" + hora + "*?\n¿No duerme?" : "Son " + art + " *" + hora + "*…");
+        // La hora solo se dice de madrugada (12:00 a 5:59 a.m.); de día no aporta nada
+        if (h24 < 6) {
+            String hora = (h24 == 0 ? 12 : h24) + ":" + (m < 10 ? "0" : "") + m + " a.m.";
+            String art = h24 == 1 ? "la" : "las";
+            // Trabajo de madrugada: la hora va en el remate y no se repite en otra nube
+            if ("trabajo".equals(tipo)) { l.add("¿Trabajo a " + art + " " + hora + "? ¿En serio?"); return l; }
+            l.add("¿A " + art + " *" + hora + "*?\n¿No duerme?");
+        }
         l.add(remate);
         return l;
+    }
+
+    /**
+     * Hace cuánto la abrió, dicho por quien observa: si fue hace nada, burla; si llevaba mucho sin
+     * abrirla, decepción. null si no hay dato o pasaron más de 7 días.
+     */
+    static String hace(long ultima, long ahora, int semilla) {
+        if (ultima < 0 || ultima > ahora) return null;
+        long min = (ahora - ultima) / 60_000;
+        if (min < 5) {
+            String t = min < 1 ? "un momento" : min == 1 ? "1 min" : min + " min";
+            return elige(semilla, "¿Otra vez? La abrió\nhace *" + t + "*", "Hace *" + t + "* que la abrió…\n¿se le olvidó algo?",
+                    "¿Ya? Si la abrió\nhace *" + t + "*");
+        }
+        if (min < 60) return elige(semilla, "La abrió hace\n*" + min + " min*…", "Apenas *" + min + " min*\ny ya la extraña",
+                "*" + min + " min* sin ella…\nno aguantó más");
+        long h = min / 60;
+        if (h < 24) {
+            String t = h == 1 ? "1 hora" : h + " horas";
+            return elige(semilla, "Aguantó *" + t + "*\nsin abrirla… hasta ahora", "Iba tan bien…\n*" + t + "* sin ella",
+                    "Qué mal… *" + t + "*\nsin tocarla y vuelve");
+        }
+        long dias = h / 24;
+        if (dias > 7) return null;
+        String t = dias == 1 ? "un día" : dias + " días";
+        return elige(semilla, "Llevaba *" + t + "*\nsin abrirla… qué lástima", "Qué pena… *" + t + "*\nsin ella y vuelve",
+                "*" + t + "* libre de ella…\n¿y ahora?");
     }
 
     /** Turna las variantes con cada apertura, para no decir siempre lo mismo. */

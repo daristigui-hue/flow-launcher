@@ -14,6 +14,9 @@
    primer plano.
 
 ## Hecho
+- v0.19: en la pausa, una nube nueva dice hace cuánto se abrió la app la última vez, con burla si fue
+  hace nada («¿Otra vez? La abrió hace 2 min») y decepción si llevaba horas o días sin abrirla. La
+  hora ya solo sale de madrugada (12:00 a 5:59 a.m.).
 - v0.18: Opciones › APPS EN EL LISTADO › ELEGIR abre la lista completa con todas las apps, ocultas
   incluidas (tenues). ✓ = sale en el listado, ⊘ = oculta; tocar una la cambia sin abrirla. Se desliza y
   la ola salta por letra como siempre. LISTO (o atrás) regresa a Opciones. Las ocultas tampoco salen en

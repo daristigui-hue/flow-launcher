@@ -20,6 +20,7 @@ final class UsoApps {
     static final class Dias {
         final long[] ms = new long[DIAS];
         final int[] veces = new int[DIAS];
+        long ultima = -1;   // cuándo empezó la última apertura (-1 = ninguna en estos días)
     }
 
     private UsoApps() { }
@@ -57,7 +58,7 @@ final class UsoApps {
             if (tipo == UsageEvents.Event.ACTIVITY_RESUMED) {
                 if (alFrente.isEmpty()) {
                     desde = ts;
-                    if (ultimaSalida < 0 || ts - ultimaSalida > 3000) r.veces[dia(inicio, ts)]++;
+                    if (ultimaSalida < 0 || ts - ultimaSalida > 3000) { r.veces[dia(inicio, ts)]++; r.ultima = ts; }
                 }
                 alFrente.add(e.getClassName());
             } else if (tipo == UsageEvents.Event.ACTIVITY_PAUSED || tipo == UsageEvents.Event.ACTIVITY_STOPPED) {

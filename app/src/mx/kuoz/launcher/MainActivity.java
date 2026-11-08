@@ -401,7 +401,11 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
 
     private void abrirYa(final AppEntry a) {
         cuentaUso(a);
-        if (pausadas.contains(a.clave)) suma(a.clave, 0);
+        if (pausadas.contains(a.clave)) {
+            suma(a.clave, 0);
+            // Sin el permiso de uso, «hace cuánto la abrió» sale de aquí (solo cuenta lo abierto desde Flow)
+            prefs.edit().putLong("pausa_abierta_" + a.clave, System.currentTimeMillis()).apply();
+        }
         // Opción «al abrir una app»: con la franja completa la app se pide cuando ya cubrió la
         // pantalla (0.4 s, el efecto entero); al instante se pide ya y la franja corre encima.
         if (vista.franjaCompleta()) vista.corte(a.mayus, () -> lanzar(a));
@@ -467,10 +471,11 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         prefs.edit().putInt("pausa_frase_" + tipo, k).apply();
         final String remate = Tipos.frase(tipo, k);
         final int ajuste = prefs.getInt("pausa_seg", 10);
+        final long abiertaPropia = prefs.getLong("pausa_abierta_" + a.clave, -1);
         new Thread(() -> {
             UsoApps.Dias uso = null;
             try { uso = UsoApps.leer(this, pkg); } catch (RuntimeException ignorado) { }   // sin datos: salen solo las nubes básicas
-            final List<String> frases = Pausa.frases(uso, veces, java.util.Calendar.getInstance(), tipo, remate);
+            final List<String> frases = Pausa.frases(uso, veces, abiertaPropia, java.util.Calendar.getInstance(), tipo, remate);
             // «Crece»: 6 s las primeras 4 veces del día, 10 s hasta la 9ª y 15 s de ahí en adelante
             int vez = (uso != null ? uso.veces[0] : veces) + 1;
             final int seg = ajuste != 0 ? ajuste : vez <= 4 ? 6 : vez <= 9 ? 10 : 15;
