@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="mx.kuoz.launcher"
-    android:versionCode="21"
-    android:versionName="0.19">
+    android:versionCode="22"
+    android:versionName="0.20">
 
     <uses-sdk android:minSdkVersion="30" android:targetSdkVersion="34" />
 
@@ -16,6 +16,8 @@
 
     <!-- Pausa consciente: tiempo de uso por app; la persona lo da a mano en Ajustes, nada sale del teléfono -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+    <!-- Blanco y negro al abrir una app con pausa: solo se da por shell (pm grant), nunca desde Ajustes -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
 
     <application
         android:label="Flow"

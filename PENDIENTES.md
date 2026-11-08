@@ -12,8 +12,13 @@
    nombres de las apps. Las frases de la pausa con IA esperan a poder correr en el teléfono: Gemini Nano
    vía ML Kit GenAI hoy solo sirve a apps de terceros del Pixel 9 en adelante, exige Gradle y la app en
    primer plano.
+8. Pausa con Shizuku: suspender la app de verdad (`pm suspend`), opcional, con Shizuku corriendo.
 
 ## Hecho
+- v0.20: blanco y negro al abrir una app con pausa (corrección de color de Android en escala de grises);
+  el color vuelve al regresar al inicio y se respeta la corrección de color que ya se tuviera. Requiere
+  dar un permiso una vez por shell (Shizuku + aShell, o adb); Opciones › PAUSA › BLANCO Y NEGRO copia
+  los comandos.
 - v0.19: en la pausa, una nube nueva dice hace cuánto se abrió la app la última vez, con burla si fue
   hace nada («¿Otra vez? La abrió hace 2 min») y decepción si llevaba horas o días sin abrirla. La
   hora ya solo sale de madrugada (12:00 a 5:59 a.m.).

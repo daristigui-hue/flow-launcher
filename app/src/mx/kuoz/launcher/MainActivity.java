@@ -207,9 +207,11 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     @Override
     protected void onResume() {
         super.onResume();
+        Gris.quitar(this, prefs);
         vista.alVolver();
         vista.setWallpaperActual(wallpaperActual());
         vista.setPermisoUso(UsoApps.permiso(this));
+        vista.setGris(Gris.permiso(this), prefs.getBoolean("gris", true));
         // Con «Color del sistema», si cambió la paleta mientras estaba fuera, tomar la paleta nueva
         Skin nueva = Skin.FONDO.equals(skin.id) ? Skin.delFondo(this) : null;
         if (nueva != null && !nueva.igual(skin)) {   // repintar solo si el wallpaper sí cambió los colores
@@ -405,6 +407,7 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
             suma(a.clave, 0);
             // Sin el permiso de uso, «hace cuánto la abrió» sale de aquí (solo cuenta lo abierto desde Flow)
             prefs.edit().putLong("pausa_abierta_" + a.clave, System.currentTimeMillis()).apply();
+            Gris.poner(this, prefs);
         }
         // Opción «al abrir una app»: con la franja completa la app se pide cuando ya cubrió la
         // pantalla (0.4 s, el efecto entero); al instante se pide ya y la franja corre encima.
@@ -613,6 +616,19 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
         boolean si = !prefs.getBoolean("franja", true);
         prefs.edit().putBoolean("franja", si).apply();
         vista.setFranjaCompleta(si);
+    }
+
+    @Override
+    public void alternarGris() {
+        if (!Gris.permiso(this)) {
+            android.content.ClipboardManager cb = getSystemService(android.content.ClipboardManager.class);
+            cb.setPrimaryClip(android.content.ClipData.newPlainText("Flow", Gris.COMANDOS));
+            vista.aviso("COPIADO · PÉGALO EN ASHELL");
+            return;
+        }
+        boolean si = !prefs.getBoolean("gris", true);
+        prefs.edit().putBoolean("gris", si).apply();
+        vista.setGris(true, si);
     }
 
     @Override

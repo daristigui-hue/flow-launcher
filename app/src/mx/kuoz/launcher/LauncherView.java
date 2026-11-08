@@ -60,6 +60,7 @@ final class LauncherView extends View {
         void mostrar(String clave);
         void alternarFranja();
         void alternarSoltar();
+        void alternarGris();                        // sin permiso: copia los comandos para aShell
         void alternarPausa(AppEntry a);             // pausa consciente antes de abrirla, sí/no
         void pausaElegida(AppEntry a, boolean abrir);
         void permisoUso();
@@ -193,8 +194,9 @@ final class LauncherView extends View {
     private List<AppEntry> conPausa = new ArrayList<>();
     private final Set<String> clavesPausa = new HashSet<>();
     private boolean permisoUso;
+    private boolean gris = true, grisPermiso;   // blanco y negro al abrir una app con pausa
     private int pausaSeg = 10;                // 0 = crece con las aperturas del día
-    private static final int MAX_PAUSA = 6;   // + permiso + duración + regresar = 9 ≤ opcRect
+    private static final int MAX_PAUSA = 6;   // + permiso + duración + gris + regresar = 10 ≤ opcRect
     private String opcCarpeta;
     private boolean opcConfirmaBorrar;
     /** Elegir el listado (Opciones › APPS EN EL LISTADO): la tira trae también las ocultas y
@@ -313,6 +315,8 @@ final class LauncherView extends View {
     void setPermisoUso(boolean si) { permisoUso = si; invalidate(); }
 
     void setPausaSeg(int seg) { pausaSeg = seg; invalidate(); }
+
+    void setGris(boolean permiso, boolean si) { grisPermiso = permiso; gris = si; invalidate(); }
 
     /** Arranca la pausa consciente encima de todo (5 s, no se salta). */
     void pausa(AppEntry a, List<String> frases, int resisteHoy, int segundos) {
@@ -1696,6 +1700,7 @@ final class LauncherView extends View {
         } else if (opcPagina == 4) {
             l.add(new String[]{"PERMISO · USO DE APPS", permisoUso ? "SÍ · VE TIEMPO Y PROMEDIO" : "NO · DAR PERMISO ›"});
             l.add(new String[]{"DURACIÓN", pausaSeg == 0 ? "CRECE · 6 → 10 → 15 S" : pausaSeg + " SEGUNDOS"});
+            l.add(new String[]{"BLANCO Y NEGRO AL ABRIR", !grisPermiso ? "FALTA PERMISO · COPIAR COMANDOS ›" : gris ? "SÍ" : "NO"});
             for (int i = 0; i < conPausa.size() && i < MAX_PAUSA; i++)
                 l.add(new String[]{"CON PAUSA · TOCA PARA QUITAR", conPausa.get(i).mayus});
             if (conPausa.isEmpty()) l.add(new String[]{"NINGUNA", "MANTÉN UNA APP › PAUSA"});
@@ -1740,8 +1745,9 @@ final class LauncherView extends View {
             int n = Math.min(conPausa.size(), MAX_PAUSA);
             if (i == 0) { if (!permisoUso) { opciones = false; oyente.permisoUso(); } }
             else if (i == 1) oyente.cambiarDuracion();
-            else if (i <= n + 1) oyente.alternarPausa(conPausa.get(i - 2));   // la página se queda
-            else if (conPausa.isEmpty() && i == 2) { }
+            else if (i == 2) oyente.alternarGris();
+            else if (i <= n + 2) oyente.alternarPausa(conPausa.get(i - 3));   // la página se queda
+            else if (conPausa.isEmpty() && i == 3) { }
             else opcPagina = 0;
         } else if (opcPagina == 1) {
             int n = Math.min(carpetas.size(), 5);
