@@ -33,7 +33,7 @@ final class Gris {
         try {
             ContentResolver r = c.getContentResolver();
             // commit, no apply: si truena estando en gris, al volver hay que saber que lo puso Flow
-            prefs.edit().putBoolean("gris_puesto", true)
+            prefs.edit().putBoolean("gris_puesto", true).putLong("gris_desde", System.currentTimeMillis())
                     .putInt("gris_antes_on", Settings.Secure.getInt(r, ON, 0))
                     .putInt("gris_antes_modo", Settings.Secure.getInt(r, MODO, DEUTERANOMALIA)).commit();
             Settings.Secure.putInt(r, MODO, MONOCROMO);
@@ -41,9 +41,14 @@ final class Gris {
         } catch (Exception e) { }
     }
 
-    /** Al volver al inicio. Solo deshace lo que puso Flow. */
+    /**
+     * Al volver al inicio. Solo deshace lo que puso Flow. No en los 1.5 s después de ponerlo: el gris
+     * cambia el modo de color de la pantalla y el inicio puede volver a «reanudarse» mientras la app
+     * abre; quitarlo ahí dejaba la franja gris y la app a color (0.20.1). El siguiente regreso lo quita.
+     */
     static void quitar(Context c, SharedPreferences prefs) {
         if (!prefs.getBoolean("gris_puesto", false)) return;
+        if (System.currentTimeMillis() - prefs.getLong("gris_desde", 0) < 1500) return;
         try {
             ContentResolver r = c.getContentResolver();
             Settings.Secure.putInt(r, ON, prefs.getInt("gris_antes_on", 0));
