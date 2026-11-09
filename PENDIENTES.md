@@ -15,6 +15,7 @@
 8. Pausa con Shizuku: suspender la app de verdad (`pm suspend`), opcional, con Shizuku corriendo.
 
 ## Hecho
+- v0.20.3: el ícono lleva una F (de Flow) en lugar de la P de cuando la app se llamaba distinto.
 - v0.20.1: en Opciones › PAUSA las apps con pausa van en un desplegable (un renglón que se abre),
   no una por renglón; el aviso de permiso del blanco y negro ya cabe.
 - v0.20: blanco y negro al abrir una app con pausa (corrección de color de Android en escala de grises);
