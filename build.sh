@@ -24,7 +24,7 @@ javac -nowarn -Xlint:-options -source 8 -target 8 -encoding UTF-8 -bootclasspath
   $(find app/src build/gen -name '*.java')
 
 # 3) .class → classes.dex
-java -cp "$D8" com.android.tools.r8.D8 --release --min-api 30 --lib "$JAR" --output build/dex \
+java -cp "$D8" com.android.tools.r8.D8 --release --min-api 29 --lib "$JAR" --output build/dex \
   $(find build/obj -name '*.class')
 
 # 4) Meter el dex, alinear (antes de firmar, nunca después) y firmar v2/v3
