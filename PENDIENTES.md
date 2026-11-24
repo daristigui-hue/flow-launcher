@@ -1,5 +1,7 @@
 # Pendientes / ideas
 
+> ⏸ **PAUSADO por Kuoz (24-nov):** nada del launcher se toca por ahora, salvo lo que pida explícitamente. Widgets (1) esperaba decidir dónde viven.
+
 ## App
 1. **Widgets** en la pantalla de inicio (a futuro).
 2. Avisos bajo el nombre de la app (NotificationListener), como Niagara.
@@ -12,9 +14,10 @@
    nombres de las apps. Las frases de la pausa con IA esperan a poder correr en el teléfono: Gemini Nano
    vía ML Kit GenAI hoy solo sirve a apps de terceros del Pixel 9 en adelante, exige Gradle y la app en
    primer plano.
-8. Pausa con Shizuku: suspender la app de verdad (`pm suspend`), opcional, con Shizuku corriendo.
+8. ~~Pausa con Shizuku (`pm suspend`)~~ — descartado 24-nov (Kuoz).
 
 ## Hecho
+- v0.20.4: mantener presionada una app → «ⓘ INFO DE LA APP» abre la info de Android (desinstalar, permisos). Pedido de Kuoz 24-nov para su hermana. **Sin probar en el teléfono.**
 - v0.20.3: el ícono lleva una F (de Flow) en lugar de la P de cuando la app se llamaba distinto.
 - v0.20.1: en Opciones › PAUSA las apps con pausa van en un desplegable (un renglón que se abre),
   no una por renglón; el aviso de permiso del blanco y negro ya cabe.

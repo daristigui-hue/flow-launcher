@@ -339,6 +339,20 @@ public class MainActivity extends Activity implements LauncherView.Oyente {
     }
 
     @Override
+    public void infoApp(AppEntry a) {
+        if (a.carpetaId != null || a.comp == null) return;
+        try {
+            ((android.content.pm.LauncherApps) getSystemService(LAUNCHER_APPS_SERVICE))
+                    .startAppDetailsActivity(a.comp, a.user, null, null);
+        } catch (Exception e) {
+            try {
+                startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:" + a.comp.getPackageName())));
+            } catch (Exception e2) { vista.aviso("NO PUDE ABRIR LA INFO"); }
+        }
+    }
+
+    @Override
     public void ocultar(AppEntry a) {
         if (a.carpetaId != null) return;
         ocultas.add(a.clave);

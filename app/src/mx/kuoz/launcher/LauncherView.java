@@ -57,6 +57,7 @@ final class LauncherView extends View {
         void borrarCarpeta(String carpetaId);
         void alternarCarpetaInicio(String carpetaId);
         void ocultar(AppEntry a);                   // fuera de la ola, búsqueda y favoritas
+        void infoApp(AppEntry a);                   // pantalla de «Info de la app» de Android (desinstalar, permisos…)
         void mostrar(String clave);
         void alternarFranja();
         void alternarSoltar();
@@ -1038,6 +1039,7 @@ final class LauncherView extends View {
             menuOps.add(new String[]{"⊘ OCULTAR APP", "O"});
             opsPausa(a);
         }
+        if (a.carpetaId == null) menuOps.add(new String[]{"ⓘ INFO DE LA APP", "I"});
         tMenu = SystemClock.uptimeMillis();
         invalidate();
     }
@@ -1080,6 +1082,7 @@ final class LauncherView extends View {
             case 'S': oyente.sacarDeCarpeta(a, modo.substring(CARPETA.length())); break;
             case 'R': oyente.renombrarCarpeta(a.carpetaId); break;
             case 'Z': oyente.alternarPausa(a); break;
+            case 'I': oyente.infoApp(a); break;
             case 'T': menuApp = a; menuTipos(); return;
             case 'Y': oyente.elegirTipo(a, acc.substring(1)); break;
             case 'O':
